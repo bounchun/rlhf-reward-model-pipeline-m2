@@ -1,13 +1,8 @@
 # Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
 
-**Module:** Data Handling and Infrastructure for AI (SETU) · **Author:** BC · **Dataset version:** `hhrlhf-v1.0`
-
 ```
 Raw Data → Storage → Data Pipeline → ML Pipeline + MLOps → Model → Scalable Inference → Updated Models
 ```
-
-> Each section below is numbered to match the Milestone 1 peer-grading rubric (criteria 1–10).
-> Values in ⟨angle brackets⟩ are filled from `manifests/v1.0.json` after running the pipeline.
 
 ## Milestone 1 questions at a glance
 
@@ -15,19 +10,19 @@ Short answers to the questions on the Milestone 1 assignment slides. Each links 
 
 | Slide question | Answer | Details |
 |---|---|---|
-| Select a suitable **raw data source** (public, licence checked) | `Anthropic/hh-rlhf` on Hugging Face, pinned to one commit. It is **MIT-licensed** and public, so it can be reused. | §0 |
-| **At least 10,000 learning samples**? | Yes. There are ≈169k preference pairs in the source; the pipeline keeps a ≈30k working set plus ≈20% of prompt groups reserved as future data. Every figure is well above 10k. | §0, §6 |
-| **Realistic imperfections, missing values / other quality issues** | Missing or malformed fields, unparseable lines, chosen/rejected contexts that don't match, empty or identical replies, duplicates, length outliers, one-sided repeated phrases (possible poisoning), PII, and label noise (≈63% annotator agreement). Each is counted in the manifest. | §0, §10–12 |
-| Define a **meaningful AI/ML task** | Pairwise preference prediction: which of two replies did a human prefer? This is the reward-model step of RLHF. | §0 |
-| Identify the **target variable** and **relevant features** | Target `label` (1 = reply A preferred). Features: `context`, `response_a`, `response_b`, `num_turns`, length features. Audit-only columns: `subset`, refusal flags, `is_long_outlier`. | §7–8 |
-| **Evaluation strategy**: train/dev/test or cross-validation, justified | A group-based 80/10/10 train/dev/test split instead of CV: data is plentiful, and a transformer is too costly to train k times. The split is chosen to **match how the system will be used**: it will score conversations it has never seen. | §6 |
-| Where will the **raw data** live? | `gs://⟨bucket⟩/raw/hh-rlhf/⟨revision⟩/`, unchanged JSONL.gz, write-once, versioned bucket | §1 |
-| Where will the **processed data** be stored? | Train/dev in `gs://⟨bucket⟩/processed/v1.0/`; test and future data in a separate `⟨bucket⟩-holdout` bucket | §2–3 |
-| What **file formats**? | Raw: JSONL.gz (original). Processed: Parquet (Snappy). Manifests: JSON. Audit reports: CSV/JSON. | §2, §8 |
-| **Database or object storage**? | Object storage only (GCS). The workload is bulk sequential reads with no joins, transactions or similarity search. | §3 |
-| How are **data versions identified**? | `hhrlhf-vMAJOR.MINOR` in every path, a manifest with SHA-256 checksums and the Git commit, a Git tag, and GCS Object Versioning | §4 |
-| How will the system **access the data**? | `gcsfs` through Application Default Credentials. The bucket name comes from a Colab Secret or environment variable. Least-privilege service accounts; training cannot read the holdout bucket. | §5 |
-| Legal (Lecture 2): personal data, consent, secure access | MIT licence, a regex PII scan with counts reported, no redistribution of the text, and access limited to my account and service accounts | §0, §5 |
+| Select a suitable **raw data source** (public, licence checked) | `Anthropic/hh-rlhf` on Hugging Face, pinned to one commit. It is **MIT-licensed** and public, so it can be reused. | 
+| **At least 10,000 learning samples**? | Yes. There are ≈169k preference pairs in the source; the pipeline keeps a ≈30k working set plus ≈20% of prompt groups reserved as future data. Every figure is well above 10k. | 
+| **Realistic imperfections, missing values / other quality issues** | Missing or malformed fields, unparseable lines, chosen/rejected contexts that don't match, empty or identical replies, duplicates, length outliers, one-sided repeated phrases (possible poisoning), PII, and label noise (≈63% annotator agreement). Each is counted in the manifest. | 
+| Define a **meaningful AI/ML task** | Pairwise preference prediction: which of two replies did a human prefer? This is the reward-model step of RLHF. | 
+| Identify the **target variable** and **relevant features** | Target `label` (1 = reply A preferred). Features: `context`, `response_a`, `response_b`, `num_turns`, length features. Audit-only columns: `subset`, refusal flags, `is_long_outlier`. | 
+| **Evaluation strategy**: train/dev/test or cross-validation, justified | A group-based 80/10/10 train/dev/test split instead of CV: data is plentiful, and a transformer is too costly to train k times. The split is chosen to **match how the system will be used**: it will score conversations it has never seen. | 
+| Where will the **raw data** live? | `gs://⟨bucket⟩/raw/hh-rlhf/⟨revision⟩/`, unchanged JSONL.gz, write-once, versioned bucket | 
+| Where will the **processed data** be stored? | Train/dev in `gs://⟨bucket⟩/processed/v1.0/`; test and future data in a separate `⟨bucket⟩-holdout` bucket | 
+| What **file formats**? | Raw: JSONL.gz (original). Processed: Parquet (Snappy). Manifests: JSON. Audit reports: CSV/JSON. | 
+| **Database or object storage**? | Object storage only (GCS). The workload is bulk sequential reads with no joins, transactions or similarity search. | 
+| How are **data versions identified**? | `hhrlhf-vMAJOR.MINOR` in every path, a manifest with SHA-256 checksums and the Git commit, a Git tag, and GCS Object Versioning | 
+| How will the system **access the data**? | `gcsfs` through Application Default Credentials. The bucket name comes from a Colab Secret or environment variable. Least-privilege service accounts; training cannot read the holdout bucket. | 
+| Legal (Lecture 2): personal data, consent, secure access | MIT licence, a regex PII scan with counts reported, no redistribution of the text, and access limited to my account and service accounts | 
 
 ---
 
