@@ -119,7 +119,7 @@ Diagrams of the design (in `docs/img/`, Mermaid sources in `docs/diagrams/`) are
 
 
 
-## 1. Raw data storage (criterion 1)
+## 1. Raw data storage 
 
 The raw data lives in a **Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`**, with these settings:
 
@@ -145,7 +145,7 @@ The buckets are created by `scripts/setup_gcs.sh`, which sets the storage classe
 
 Screenshots of the real buckets are in [Screenshots of the real run](#screenshots-of-the-real-run).
 
-## 2. Processed data storage and file formats (criterion 2)
+## 2. Processed data storage and file formats 
 
 | Stage | Location | Format | Why this format |
 |---|---|---|---|
@@ -163,7 +163,7 @@ Intermediate step outputs are kept locally in `data/interim/v1.0/` (git-ignored)
 
 ![Data organisation across the two buckets, the local working folder and GitHub](docs/img/data_organisation.png)
 
-## 3. Database / object storage decision (criterion 3)
+## 3. Database / object storage decision 
 
 The project uses **object storage (GCS) only, with no database**, for these reasons:
 
@@ -181,7 +181,7 @@ The project uses **object storage (GCS) only, with no database**, for these reas
 
 Putting the test set in its own bucket makes accidental test leakage impossible at the permission level, not just by convention. Storage cost for data this small is negligible. This decision will be revisited in M4 if logging predictions needs a small database.
 
-## 4. Data versioning (criterion 4)
+## 4. Data versioning 
 
 Three mechanisms work together, following Lecture 2, slide 32: code, config and metadata go in Git, and the data goes in object storage.
 
@@ -201,7 +201,7 @@ Three mechanisms work together, following Lecture 2, slide 32: code, config and 
    The manifest is committed to Git, and the commit is tagged `data-v1.0`. This gives the lineage **model → dataset version → pipeline commit → raw revision** (Lecture 3).
 3. **GCS Object Versioning** on both buckets, as a safety net against accidental overwrites. A lifecycle rule keeps at most **3 noncurrent versions** of an object and deletes noncurrent versions after **90 days** (`scripts/gcs_lifecycle.json`).
 
-## 5. Data access (criterion 5)
+## 5. Data access 
 
 ![Setup and access: inputs, service accounts and buckets](docs/img/setup_access.png)
 
@@ -217,7 +217,7 @@ Three mechanisms work together, following Lecture 2, slide 32: code, config and 
 - **Least-privilege write access is also a poisoning defence.** Only `pipeline-sa` can write data, and each write is checked against the manifest checksums. Tampering by an outsider, or by an insider with pipeline access, therefore shows up as a checksum mismatch (section 12).
 - **Reviewers:** see the bucket screenshots in `docs/img/`.
 
-## 6. Data split and validation strategy (criterion 6)
+## 6. Data split and validation strategy 
 
 **Choice:** a fixed **train/dev/test split (80/10/10) on a 30k-pair working set**, plus a **future-data reserve** held back for M4. Cross-validation is not used.
 
@@ -290,7 +290,7 @@ A model that scores well overall but badly on one slice is flagged, not shipped.
 
 **Limitation (temporal bias).** hh-rlhf has no per-row timestamps, so F1/F2 is a same-distribution reserve, not a true "future" slice. Because the tranche order *is* known, M4 will also run a drift check: train on base data only and evaluate on the online tranche.
 
-## 7 & 8. Features, data types and formats — data card (criteria 7 and 8)
+## 7 & 8. Features, data types and formats — data card 
 
 | Column | Definition and how it is obtained | Arrow/Parquet type | Kind |
 |---|---|---|---|
@@ -314,7 +314,7 @@ On data type versus storage format (Lecture 1):
 - The raw data is **semi-structured** (JSONL, one conversation string per field).
 - The processed data is **structured records** in Parquet whose main payload is still **unstructured text**.
 
-## 9. Reproducibility of data collection (criterion 9)
+## 9. Reproducibility of data collection 
 
 Two scripts, run with `make scrape store`:
 
@@ -333,7 +333,7 @@ The environment is pinned too:
 - Only libraries used in the module's labs are required: `pandas`, `numpy`, `gcsfs`, `requests`. `fsspec` is pinned too because `gcsfs` is built on it. The one addition is `pyarrow`, the engine pandas needs to read and write Parquet, which the GCS tutorial recommends. Config (JSON), hashing, gzip and the tests (`unittest`) use the Python standard library only.
 - Python version: 3.13 (the Colab runtime used for the v1.0 run).
 
-## 10. Reproducibility of preprocessing (criterion 10)
+## 10. Reproducibility of preprocessing 
 
 `make preprocess` runs steps 3–10 in order. Each script's docstring states its exact input, output and rules. Every step writes its counts and parameters into `manifests/v1.0.json` under `steps.⟨script⟩`.
 
@@ -368,7 +368,7 @@ make demo    # full offline run of steps 1-10 → everything under data/demo/
 The synthetic generator (`tests/fake_data.py`) plants known numbers of malformed rows, missing values, context mismatches, empty and identical replies, duplicates, PII and a one-sided trigger phrase. The tests assert that each one is dropped or flagged in exactly the planted amount. They also check that no group overlaps between splits, that the output schema is correct, that the outlier threshold is fitted on train only, that re-runs are byte-identical, that a tampered raw file is rejected, that sharding keeps every training row, and that review scoring measures agreement correctly.
 With the same `config.json` and the same commit, the command produces Parquet files that are byte-identical, as confirmed by the checksums in the manifest.
 
-## 10b. Results of the v1.0 run (from `manifests/v1.0.json`)
+## Results of the v1.0 run (from `manifests/v1.0.json`)
 
 Run on 1 October 2026 against `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`.
 
