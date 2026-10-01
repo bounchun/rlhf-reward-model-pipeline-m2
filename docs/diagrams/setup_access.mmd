@@ -1,30 +1,23 @@
-flowchart TB
-  subgraph SRC["Inputs"]
-    direction LR
-    GIT[("GitHub repo<br/>code + config + manifests")]
-    SEC[["Colab Secret DHAI_BUCKET<br/>bucket name, never in code"]]
-    ME(["You, logged in with<br/>auth.authenticate_user()"])
-  end
-  NB["Colab notebook<br/>runs step1 ... step10 via gcsfs"]
-  subgraph SA["Service accounts (scripts/setup_gcs.sh)"]
-    direction LR
-    PSA(["pipeline-sa<br/>Object Admin on both buckets"])
-    TSA(["train-sa, used from M3<br/>Object Viewer on main bucket only"])
-  end
-  subgraph ST["Storage"]
-    direction LR
-    MAIN[("gs://&lt;bucket&gt;<br/>raw, processed, audit, manifests")]
-    HOLD[("gs://&lt;bucket&gt;-holdout<br/>test + future")]
-  end
-  GIT --> NB
-  SEC --> NB
-  ME --> NB
-  NB -- "read + write" --> ST
-  PSA -- "read + write" --> ST
-  TSA -- "read only" --> MAIN
-  TSA -. "no access" .-x HOLD
+---
+config:
+  look: handDrawn
+  theme: neutral
+---
+flowchart LR
+  ME[me, Colab login]
+  SEC[Colab secret<br>DHAI_BUCKET]
+  REPO[GitHub repo]
+  NB[Colab notebook]
+  PSA[pipeline-sa]
+  TSA["train-sa (M3)"]
+  MAIN[(bc-rlhf-reward-2026)]
+  HOLD[(holdout bucket)]
 
-  classDef store fill:#fff4e0,stroke:#e67700,color:#111;
-  classDef who fill:#e8eefc,stroke:#3b5bdb,color:#111;
-  class MAIN,HOLD,GIT store;
-  class ME,PSA,TSA,SEC,NB who;
+  ME --> NB
+  SEC --> NB
+  REPO --> NB
+  NB -.->|same rights as| PSA
+  PSA -->|admin| MAIN
+  PSA -->|admin| HOLD
+  TSA -->|read only| MAIN
+  TSA -.-x|no access| HOLD

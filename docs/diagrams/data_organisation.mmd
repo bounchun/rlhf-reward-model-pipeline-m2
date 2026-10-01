@@ -1,37 +1,31 @@
+---
+config:
+  look: handDrawn
+  theme: neutral
+---
 flowchart LR
-  subgraph MAIN["gs://&lt;bucket&gt;  ·  Standard  ·  europe-west1  ·  versioning on"]
-    direction TB
-    R["raw/hh-rlhf/&lt;revision&gt;/&lt;subset&gt;/train.jsonl.gz, test.jsonl.gz<br/>original bytes, write-once"]
-    P["processed/v1.0/train.parquet, dev.parquet<br/>(+ train_shards/ if enabled)"]
-    A["audit/v1.0/poison_screen.csv, poison_flagged_pairs.csv,<br/>quality_report.json, sample_queries.json"]
-    M["manifests/v1.0.json"]
-    MO["models/ (from M3)"]
+  subgraph LOC["Colab / local (not committed)"]
+    REV[label_review_v1.0.csv]
+    DL[data/downloads/]
+    INT[data/interim/]
   end
-  subgraph HO["gs://&lt;bucket&gt;-holdout  ·  Coldline  ·  training has NO access"]
-    direction TB
-    T["v1.0/test.parquet"]
-    F["v1.0/future_f1.parquet, future_f2.parquet<br/>reserved for M4 retraining"]
+  subgraph MAIN["bc-rlhf-reward-2026"]
+    RAW[raw/]
+    PROC[processed/v1.0/]
+    AUD[audit/v1.0/]
+    MAN[manifests/]
+    MOD["models/ (M3)"]
   end
-  subgraph LOC["Local / Colab working folder (git-ignored)"]
-    direction TB
-    RV["audit/label_review_v1.0.csv - blind review sheet"]
-    D["data/downloads/ - raw files before upload"]
-    I["data/interim/v1.0/ - step outputs incl. test rows"]
+  subgraph HOLD["bc-rlhf-reward-2026-holdout"]
+    TEST[v1.0/test.parquet]
+    FUT[v1.0/future_f1, f2]
   end
-  subgraph GH["GitHub (public)"]
-    direction TB
-    C["src/, tests/, config.json, requirements.txt"]
-    MG["manifests/*.json - lineage"]
+  subgraph GH[GitHub]
+    CODE[code + config]
+    MG[manifests/]
   end
-  D --> R
-  I --> P
-  I --> T
-  I --> F
-  M -.copy.-> MG
-
-  classDef box fill:#ffffff,stroke:#495057,color:#111;
-  class R,P,A,M,MO,T,F,D,I,RV,C,MG box;
-  style MAIN fill:#fff4e0,stroke:#e67700
-  style HO fill:#ffe3e3,stroke:#c92a2a
-  style LOC fill:#f1f3f5,stroke:#868e96
-  style GH fill:#e8eefc,stroke:#3b5bdb
+  DL --> RAW
+  INT --> PROC
+  INT --> TEST
+  INT --> FUT
+  MAN -.->|copy| MG
