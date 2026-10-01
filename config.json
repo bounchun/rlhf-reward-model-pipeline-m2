@@ -3,7 +3,7 @@
   "dataset": {
     "version": "v1.0",
     "hf_repo_id": "Anthropic/hh-rlhf",
-    "hf_revision": "REPLACE_WITH_COMMIT_HASH",
+    "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
     "subsets": [
       "helpful-base",
       "harmless-base",
