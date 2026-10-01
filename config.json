@@ -14,7 +14,7 @@
       "train",
       "test"
     ],
-    "_comment_hf_revision": "Pin an exact commit hash, never 'main'. Get one with: python -m src.download_raw --resolve-revision"
+    "_comment_hf_revision": "Pin an exact commit hash, never 'main'. Get one with: python -m src.step1_scrape_raw --resolve-revision"  
   },
   "storage": {
     "_comment": "Bucket names come from DHAI_BUCKET / DHAI_HOLDOUT_BUCKET. local_root/local_holdout_root are used when DHAI_BUCKET is not set. download_dir, interim_dir, manifest_dir and audit_dir are always local (interim files still contain test rows before splitting, so they never go to a bucket).",
