@@ -109,7 +109,7 @@ manifests/                   committed dataset manifests (lineage)
 
 ## Screenshots of the real run
 
-These are taken from my own Google Cloud project and Colab run. They show what a reviewer cannot see without access to the buckets.
+These are taken from my own Google Cloud project and Colab run. They show what's in them and how they're set up.
 
 | What it shows | Screenshot |
 |---|---|
@@ -118,9 +118,6 @@ These are taken from my own Google Cloud project and Colab run. They show what a
 | Bucket settings: location, storage class, Object Versioning, public access prevention | <img src="docs/img/screenshot_bucket_settings.png" alt="Bucket configuration" width="420"> |
 | Colab Secret `DHAI_BUCKET` (value hidden), so no bucket name or credential is in the code | <img src="docs/img/screenshot_colab_secret.png" alt="Colab secret" width="420"> |
 | Colab output of step 3 (rows dropped) and step 7 (split sizes) | <img src="docs/img/screenshot_colab_steps.png" alt="Colab step output" width="420"> |
-
-Diagrams of the design (in `docs/img/`, Mermaid sources in `docs/diagrams/`) are shown in sections 2, 5 and 6.
-
 
 
 ## 1. Raw data storage 
