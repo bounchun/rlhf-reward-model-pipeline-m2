@@ -1,7 +1,5 @@
 # Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
 
-```
-
 ## Milestone 1 questions at a glance
 
 Short answers to the questions on the Milestone 1 assignment slides. 
@@ -14,13 +12,12 @@ Short answers to the questions on the Milestone 1 assignment slides.
 | Define a **meaningful AI/ML task** | Pairwise preference prediction: which of two replies did a human prefer? This is the reward-model step of RLHF. | 
 | Identify the **target variable** and **relevant features** | Target `label` (1 = reply A preferred). Features: `context`, `response_a`, `response_b`, `num_turns`, length features. Audit-only columns: `subset`, refusal flags, `is_long_outlier`. | 
 | **Evaluation strategy**: train/dev/test or cross-validation, justified | A group-based 80/10/10 train/dev/test split instead of CV: data is plentiful, and a transformer is too costly to train k times. The split is chosen to **match how the system will be used**: it will score conversations it has never seen. | 
-| Where will the **raw data** live? | `gs://bc-rlhf-reward-2026/raw/hh-rlhf/⟨revision⟩/`, unchanged JSONL.gz, write-once, versioned bucket | 
+| Where will the **raw data** live? | `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`, unchanged JSONL.gz, write-once, versioned bucket | 
 | Where will the **processed data** be stored? | Train/dev in `gs://bc-rlhf-reward-2026/processed/v1.0/`; test and future data in a separate `bc-rlhf-reward-2026-holdout` bucket | 
 | What **file formats**? | Raw: JSONL.gz (original). Processed: Parquet (Snappy). Manifests: JSON. Audit reports: CSV/JSON. | 
 | **Database or object storage**? | Object storage only (GCS). The workload is bulk sequential reads with no joins, transactions or similarity search. | 
-| How are **data versions identified**? | `hhrlhf-vMAJOR.MINOR` in every path, a manifest with SHA-256 checksums and the Git commit, a Git tag, and GCS Object Versioning | 
+| How are **data versions identified**? | Dataset version `v1.0` (scheme `vMAJOR.MINOR`) in every processed path, a manifest with SHA-256 checksums and the Git commit, a Git tag, and GCS Object Versioning | 
 | How will the system **access the data**? | `gcsfs` through Application Default Credentials. The bucket name comes from a Colab Secret or environment variable. Least-privilege service accounts; training cannot read the holdout bucket. | 
-| Legal (Lecture 2): personal data, consent, secure access | MIT licence, a regex PII scan with counts reported, no redistribution of the text, and access limited to my account and service accounts | 
 
 ---
 
@@ -68,7 +65,7 @@ The code follows the lecturer's Milestone 1 checklist: one documented `.py` scri
 | Code to do the splits (train/dev/test) | `step7_split.py` | working set → `data/interim/v1.0/splits/*.parquet` (+ train-only outlier threshold) |
 | Code for sharding (if needed) | `step8_shard.py` | train → batch-aligned shards; **off by default** (section 2) |
 | Code to store the preprocessed data | `step9_store_processed.py` | splits → `processed/` and the holdout bucket, final validation, manifest |
-| Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet → agreement rate in the manifest |
+| Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet (created in v1.0); scoring planned for M2 |
 | Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/v1.0/sample_queries.json` |
 
 **Extra steps**
@@ -79,10 +76,28 @@ The code follows the lecturer's Milestone 1 checklist: one documented `.py` scri
 | **Up-sampling** | **Not used, on purpose.** Labels are balanced to ≈50/50 by the deterministic A/B position swap in `step5_features.py`, so no class needs over-sampling. No synthetic or duplicated rows are added, because duplicates would also leak between splits and synthetic data risks poisoning (sections 10 and 12). |
 | **Sample queries** | `sample_queries.py`. Pandas queries on the stored train/dev Parquet files: size and label balance, subset mix per split, conversation depth, length bias, refusals, outliers, and looking up a pair by `pair_id`. It doubles as a sanity check and a first look for M2. It never reads the holdout bucket. |
 | **Data validation** | `step3_clean.py` (checksums on the raw files plus 5 counted cleaning rules), `step4_quality_checks.py` (hard asserts), `step7_split.py` (no group overlap between splits) and `step9_store_processed.py` (final schema and overlap check before upload). |
-| **Quality checks** | `step4_quality_checks.py` (poisoning screen, PII scan, length summary) and `step10_review_sample.py` + `score_review.py` (blind human check of the labels). |
+| **Quality checks** | `step4_quality_checks.py` (poisoning screen, PII scan, length summary) and `step10_review_sample.py` + `score_review.py` (blind human check of the labels: the sheet is generated in v1.0, the labelling and scoring are planned for M2). |
 | **Tests of all the above** | `tests/`: 22 unittest tests on synthetic data with planted defects (`make test`). |
 
 Intermediate files (`data/interim/`) stay **local and git-ignored**. They still contain test rows before the split is applied, so they never go into a bucket that the training account can read.
+
+**Files in the repository**
+
+```
+config.json                  every parameter: HF revision, salts, split buckets, thresholds, regexes, folders
+requirements.txt             exact pinned versions — only libraries from the module's labs (+ pyarrow)
+Makefile                     make all | scrape | store | preprocess | queries | review-score | readme | test | demo
+src/common.py                storage (GCS via gcsfs, or local), hashing, manifest helpers
+src/text_utils.py            parsing helpers for hh-rlhf conversation strings
+src/step1_ … step10_*.py     the pipeline steps above (each file starts with its input/output docs)
+src/sample_queries.py        example queries on the stored data
+scripts/setup_gcs.sh         creates both buckets, versioning, lifecycle, service accounts
+scripts/fill_readme.py       fills this README's placeholders from the manifest after a real run
+docs/img/, docs/diagrams/    design diagrams (PNG + Mermaid source) and screenshots of the real run
+notebooks/run_pipeline_colab.ipynb   Colab runner (auth + Secrets, no hard-coded credentials)
+tests/                       22 unittest tests on synthetic data with planted defects
+manifests/                   committed dataset manifests (lineage)
+```
 
 **Workflow: how the scripts connect**
 
@@ -103,21 +118,6 @@ These are taken from my own Google Cloud project and Colab run. They show what a
 Diagrams of the design (in `docs/img/`, Mermaid sources in `docs/diagrams/`) are shown in sections 2, 5 and 6.
 
 
-```
-config.json                  every parameter: HF revision, salts, split buckets, thresholds, regexes, folders
-requirements.txt             exact pinned versions — only libraries from the module's labs (+ pyarrow)
-Makefile                     make all | scrape | store | preprocess | queries | review-score | readme | test | demo
-src/common.py                storage (GCS via gcsfs, or local), hashing, manifest helpers
-src/text_utils.py            parsing helpers for hh-rlhf conversation strings
-src/step1_ … step10_*.py     the pipeline steps above (each file starts with its input/output docs)
-src/sample_queries.py        example queries on the stored data
-scripts/setup_gcs.sh         creates both buckets, versioning, lifecycle, service accounts
-scripts/fill_readme.py       fills this README's placeholders from the manifest after a real run
-docs/img/, docs/diagrams/    design diagrams (PNG + Mermaid source) and screenshots of the real run
-notebooks/run_pipeline_colab.ipynb   Colab runner (auth + Secrets, no hard-coded credentials)
-tests/                       22 unittest tests on synthetic data with planted defects
-manifests/                   committed dataset manifests (lineage)
-```
 
 ## 1. Raw data storage (criterion 1)
 
@@ -185,7 +185,7 @@ Putting the test set in its own bucket makes accidental test leakage impossible 
 
 Three mechanisms work together, following Lecture 2, slide 32: code, config and metadata go in Git, and the data goes in object storage.
 
-1. **Semantic dataset version `hhrlhf-vMAJOR.MINOR`, embedded in every processed path.**
+1. **Semantic dataset version `vMAJOR.MINOR` (currently `v1.0`), embedded in every processed path.**
    - MAJOR changes when the raw revision or the split logic changes.
    - MINOR changes when the cleaning rules change.
    - A released version folder is never overwritten; any change creates a new folder.
@@ -330,8 +330,8 @@ Two scripts, run with `make scrape store`:
 
 The environment is pinned too:
 - All libraries are pinned to exact versions (`==`) in `requirements.txt`, and there is no `pip install --upgrade`.
-- Only libraries used in the module's labs are required: `pandas`, `numpy`, `gcsfs`, `requests`. The one addition is `pyarrow`, the engine pandas needs to read and write Parquet, which the GCS tutorial recommends. Config (JSON), hashing, gzip and the tests (`unittest`) use the Python standard library only.
-- Python version: 3.11.
+- Only libraries used in the module's labs are required: `pandas`, `numpy`, `gcsfs`, `requests`. `fsspec` is pinned too because `gcsfs` is built on it. The one addition is `pyarrow`, the engine pandas needs to read and write Parquet, which the GCS tutorial recommends. Config (JSON), hashing, gzip and the tests (`unittest`) use the Python standard library only.
+- Python version: 3.13 (the Colab runtime used for the v1.0 run).
 
 ## 10. Reproducibility of preprocessing (criterion 10)
 
@@ -346,11 +346,11 @@ The environment is pinned too:
 | `step7_split.py` | Hash split into train/dev/test; assert no group overlap. Fit the 99th-percentile length threshold **on train only** and set `is_long_outlier` everywhere. Outliers are flagged, not removed, because length bias is analysed in M2. | — |
 | `step8_shard.py` | Optional batch-aligned training shards (section 2). | — |
 | `step9_store_processed.py` | Final validation (schema, no group or pair overlap). Write deterministic Parquet files to both buckets, record their SHA-256 checksums, and upload the manifest. | — |
-| `step10_review_sample.py` | Export 200 train pairs, stratified by subset, to `audit/label_review_v1.0.csv` with no labels shown. I label them blind, and `make review-score` records my agreement with the crowdworkers in the manifest. | — |
+| `step10_review_sample.py` | Export 200 train pairs, stratified by subset, to `audit/label_review_v1.0.csv` with no labels shown. I will label them blind in M2, and `make review-score` will then record my agreement with the crowdworkers in the manifest. | — |
 
 **No synthetic augmentation.** No synthetic or LLM-generated rows are added to rebalance the data. The label balance comes from the position swap, and the subset balance comes from stratified sampling. Training on generated data risks the recursion or "data poisoning" loop described in the week 1 lecture and in the data bias article (section 11). The Virus Infection Attack paper (Liang et al., 2025) adds a further risk: a poisoning payload can survive into synthetic data even when the prompts used to generate it are clean.
 
-Every parameter lives in `config.json`, not in code: the salts, the percentile, the working-set size and the tokenizer length.
+Every parameter lives in `config.json`, not in code: the salts, the split buckets, the percentile, the working-set size, the regexes and the evaluation slices.
 
 **To reproduce from scratch:**
 ```bash
@@ -410,9 +410,9 @@ This section uses two course readings: the *Data bias in LLM and generative AI a
 | Bias type (MOSTLY AI) | How it shows up in hh-rlhf | What this project does |
 |---|---|---|
 | **Selection bias** | Mostly US-based, English-speaking MTurk workers wrote the prompts and gave the labels, so other languages, cultures and user groups are under-represented. The subset sizes are also unequal. | Recorded in this data card as a known limit on who the model generalises to. The working set is stratified by subset. Results are reported per slice (section 6). |
-| **Implicit bias** (annotators) | Each pair has one subjective label, and researcher–crowdworker agreement was only ≈63%. The paper notes the crowdworker pool changed over the project. | 200-pair human review (step 10) to estimate label noise. Accuracy is read against that noise ceiling, not against 100%. |
+| **Implicit bias** (annotators) | Each pair has one subjective label, and researcher–crowdworker agreement was only ≈63%. The paper notes the crowdworker pool changed over the project. | 200-pair human review (sheet created by step 10; labelling planned for M2) to estimate label noise. Accuracy is read against that noise ceiling, not against 100%. |
 | **Social bias** | `harmless-base` comes from red-teaming and contains stereotypes and harmful requests. The model may learn to reward refusals in general, or particular stereotyped wording. | Refusal flags plus a per-subset slice. In M2, a qualitative review of the highest-scoring and lowest-scoring replies on the harmless slice. |
-| **Automation bias** / recursion | The responses were written by a language model, not by people. Crowdworkers can also use LLMs themselves. | No synthetic augmentation (section 10). The human review sample keeps a person checking the data. |
+| **Automation bias** / recursion | The responses were written by a language model, not by people. Crowdworkers can also use LLMs themselves. | No synthetic augmentation (section 10). The human review sample (M2) keeps a person checking the data. |
 | **Temporal bias** | Collected in 2021–22 in three tranches. Preferences reflect models and norms from that time. | Pinned HF revision. Per-tranche slices. Drift check in M4 (section 6). |
 | **Length bias** (known reward-model failure) | Longer replies may be preferred whatever their quality. | `len_diff` feature, a length-bucket slice, and an M2 analysis of P(chosen is longer). |
 
@@ -422,8 +422,8 @@ This section uses two course readings: the *Data bias in LLM and generative AI a
   2. *Is the data representative?* Covered by the subset mix and label balance recorded for each split.
   3. *Is there bias in the input data?* Covered by the length and refusal analyses above.
   4. *How accurate is the model on each subgroup?* Covered by the fixed evaluation slices in section 6.
-- **Audit against a standard defined in advance.** The metrics, slices and the "flag, don't ship" rule are fixed in `config.json` before the test set is used.
-- **Disclosure.** The paper found the auditors rated "best in class" were the ones who publish their methods and results. This repository publishes the code, the manifest, the drop counts, the human-review agreement rate and the per-slice results. The raw text is not republished; it stays at its public source.
+- **Audit against a standard defined in advance.** The evaluation slices are fixed in `config.json`, and the metrics and the "flag, don't ship" rule in this README, before the test set is used.
+- **Disclosure.** The paper found the auditors rated "best in class" were the ones who publish their methods and results. This repository publishes the code, the manifest, the drop counts and, once available, the human-review agreement rate (M2) and the per-slice results (M3). The raw text is not republished; it stays at its public source.
 - **Reporting real-world harm (M4).**
   - The inference API will log each prediction's model version and request ID.
   - It will have a `/feedback` endpoint for flagging a harmful ranking.
