@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+# data never goes into Git (it lives in GCS / the local lake)
+data/
+# service-account keys
+*-key.json
+*credentials*.json
+# human-review CSVs contain dataset text (harmful content); keep them out of Git
+audit/*.csv

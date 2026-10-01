@@ -1,0 +1,10 @@
+# Only libraries used in the module's lab material (GCS tutorial, NumPy / Pandas labs),
+# pinned to exact versions so every install is identical (no --upgrade).
+# Python 3.11+ ; everything else (json, hashlib, gzip, re, unittest, ...) is standard library.
+pandas==3.0.2
+numpy==2.4.4
+gcsfs==2026.8.1
+requests==2.33.1
+# Exception: Parquet engine. The GCS tutorial recommends Parquet, and pandas needs an
+# engine to read/write it (to_parquet / read_parquet); pyarrow is pandas' default one.
+pyarrow==25.0.1

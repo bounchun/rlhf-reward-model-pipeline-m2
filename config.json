@@ -1,0 +1,103 @@
+{
+  "_comment": "Single source of truth for every pipeline parameter. Bucket names are NOT stored here: they come from the DHAI_BUCKET / DHAI_HOLDOUT_BUCKET environment variables or Colab Secrets.",
+  "dataset": {
+    "version": "v1.0",
+    "hf_repo_id": "Anthropic/hh-rlhf",
+    "hf_revision": "REPLACE_WITH_COMMIT_HASH",
+    "subsets": [
+      "helpful-base",
+      "harmless-base",
+      "helpful-online",
+      "helpful-rejection-sampled"
+    ],
+    "source_splits": [
+      "train",
+      "test"
+    ],
+    "_comment_hf_revision": "Pin an exact commit hash, never 'main'. Get one with: python -m src.download_raw --resolve-revision"
+  },
+  "storage": {
+    "_comment": "Bucket names come from DHAI_BUCKET / DHAI_HOLDOUT_BUCKET. local_root/local_holdout_root are used when DHAI_BUCKET is not set. download_dir, interim_dir, manifest_dir and audit_dir are always local (interim files still contain test rows before splitting, so they never go to a bucket).",
+    "local_root": "data/lake",
+    "local_holdout_root": "data/holdout",
+    "download_dir": "data/downloads",
+    "interim_dir": "data/interim",
+    "manifest_dir": "manifests",
+    "audit_dir": "audit"
+  },
+  "split": {
+    "future_salt": "future-v1",
+    "sample_salt": "sample-v1",
+    "tdt_salt": "tdt-v1",
+    "position_salt": "pos-v1",
+    "max_group_size": 50,
+    "future_f1_buckets": [
+      0,
+      10
+    ],
+    "future_f2_buckets": [
+      10,
+      20
+    ],
+    "working_set_size": 30000,
+    "train_buckets": [
+      0,
+      8
+    ],
+    "dev_buckets": [
+      8,
+      9
+    ],
+    "test_buckets": [
+      9,
+      10
+    ],
+    "_comment": "b1 = sha256(group_id+future_salt) % 100 -> F1 [0,10), F2 [10,20); b2 = sha256(group_id+tdt_salt) % 10 -> train [0,8), dev 8, test 9. Groups larger than max_group_size are re-keyed on full context."
+  },
+  "features": {
+    "long_outlier_percentile": 99,
+    "refusal_patterns": [
+      "\\bI'?m sorry,? but I (can'?t|cannot|won'?t)\\b",
+      "\\bI (can'?t|cannot|won'?t) (help|assist) with\\b",
+      "\\bI'?m not (able|comfortable) to\\b",
+      "\\bas an AI\\b"
+    ],
+    "_comment": "long_outlier_percentile is fitted on TRAIN only; refusal_patterns are case-insensitive regexes used for audit slicing only"
+  },
+  "shards": {
+    "_comment": "Step 8. num_shards <= 1 disables sharding (default: one Parquet file is enough at ~24k training pairs). Set e.g. 4 for multi-worker loading in M3; shard sizes are multiples of batch_size.",
+    "num_shards": 1,
+    "batch_size": 64,
+    "salt": "shard-v1"
+  },
+  "pii": {
+    "email": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+    "phone": "(?<!\\d)(?:\\+?\\d{1,3}[ .-]?)?(?:\\(\\d{3}\\)|\\d{3})[ .-]?\\d{3}[ .-]?\\d{4}(?!\\d)"
+  },
+  "poison_screen": {
+    "ngram": 8,
+    "min_pairs": 20,
+    "one_sided_ratio": 0.9,
+    "max_report": 200,
+    "_comment": "flag word n-grams occurring one-sidedly (chosen vs rejected) in >= min_pairs pairs"
+  },
+  "review": {
+    "sample_size": 200,
+    "salt": "review-v1"
+  },
+  "eval_slices": {
+    "len_diff_bins": [
+      -1000000,
+      -50,
+      50,
+      1000000
+    ],
+    "num_turns_bins": [
+      0,
+      1,
+      3,
+      1000
+    ],
+    "_comment": "fixed BEFORE the test set is read; len_diff in words; num_turns bins: 1 | 2-3 | 4+"
+  }
+}
