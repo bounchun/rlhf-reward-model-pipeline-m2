@@ -122,21 +122,21 @@ These are taken from my own Google Cloud project and Colab run. They show what's
 
 ## 1. Raw data storage 
 
-The raw data lives in a **Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`**, with these settings:
+I keep the raw data in a Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`. I set it up in `europe-west1` with the Standard storage class, uniform access control and public access blocked. **Object Versioning is on**, so if a file is ever overwritten or deleted, the old copy can still be recovered.
 
-- region `europe-west1`
-- Standard storage class
-- uniform bucket-level access
-- public access prevention on
-- **Object Versioning enabled**
-
-The files are stored at:
+The files are stored here:
 
 ```
 gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/⟨subset⟩/{train,test}.jsonl.gz
 ```
 
-These are byte-for-byte copies of the Hugging Face files and are never modified. Only `src/step2_store_raw.py` writes under `raw/`.
+They are exact copies of the files from Hugging Face, and I never edit them. Only one script, `src/step2_store_raw.py`, is allowed to write into `raw/`.
+
+**Why object storage fits here.** The raw data is just a few files that never change, and the pipeline always reads them whole. Keeping an untouched copy also means that if I find a mistake in a cleaning rule later, I can fix it and re-run everything without downloading the data again. That's the "keep an immutable copy of raw data" advice from Lecture 3.
+
+The script `scripts/setup_gcs.sh` creates both buckets and sets up their storage classes, versioning, clean-up rules and permissions (sections 1–5). You can see the real buckets in [Screenshots of the real run](#screenshots-of-the-real-run).
+
+
 
 **Why object storage suits this data:**
 - The raw data is a small number of immutable files that are only ever read in bulk.
