@@ -73,7 +73,7 @@ The code follows the lecturer's Milestone 1 checklist: one documented `.py` scri
 | Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet → agreement rate in the manifest |
 | Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/v1.0/sample_queries.json` |
 
-**Extra steps (lecturer: "up or down sampling, sample queries, data validation or quality checks")**
+**Extra steps**
 
 | Extra step | Where the code is |
 |---|---|
