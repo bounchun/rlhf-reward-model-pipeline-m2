@@ -193,12 +193,15 @@ def git_commit() -> str:
         sha = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, stderr=subprocess.DEVNULL
         ).decode().strip()
+        # manifests/ is excluded: step 1 rewrites raw-<rev>.json on every run, which is pipeline output, not a code change
         dirty = subprocess.check_output(
-            ["git", "status", "--porcelain"], cwd=REPO_ROOT, stderr=subprocess.DEVNULL
+            ["git", "status", "--porcelain", "--", ".", ":(exclude)manifests"],
+            cwd=REPO_ROOT, stderr=subprocess.DEVNULL
         ).decode().strip()
         return sha + ("-dirty" if dirty else "")
     except Exception:
         return "unknown (not a git checkout)"
+        
 
 
 def library_versions() -> dict:
