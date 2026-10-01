@@ -1,8 +1,6 @@
 # Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
 
 ```
-Raw Data → Storage → Data Pipeline → ML Pipeline + MLOps → Model → Scalable Inference → Updated Models
-```
 
 ## Milestone 1 questions at a glance
 
