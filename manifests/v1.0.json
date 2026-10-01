@@ -1,7 +1,7 @@
 {
   "dataset_version": "hhrlhf-v1.0",
-  "created_utc": "2026-10-01T15:13:28+00:00",
-  "pipeline_git_commit": "dfa425f977bd6b0c9d07063dc3d35d5c2e22573e-dirty",
+  "created_utc": "2026-10-01T18:36:45+00:00",
+  "pipeline_git_commit": "238af8da030139299e6a673d81abde1e8e119cce",
   "hf_repo_id": "Anthropic/hh-rlhf",
   "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
   "library_versions": {
@@ -13,7 +13,7 @@
   },
   "steps": {
     "step3_clean": {
-      "finished_utc": "2026-10-01T15:13:28+00:00",
+      "finished_utc": "2026-10-01T18:36:46+00:00",
       "raw_files_sha256": {
         "helpful-base/train.jsonl.gz": "518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4",
         "helpful-base/test.jsonl.gz": "8be3fc1a13b27901631696f2be6f184c799f1baeaf145f53ac5db24960adc37b",
@@ -46,7 +46,7 @@
       "pairs_after_cleaning": 168030
     },
     "step4_quality_checks": {
-      "finished_utc": "2026-10-01T15:16:48+00:00",
+      "finished_utc": "2026-10-01T18:37:34+00:00",
       "validation": {
         "pair_id_unique": true,
         "no_empty_replies": true,
@@ -127,7 +127,7 @@
       }
     },
     "step5_features": {
-      "finished_utc": "2026-10-01T15:17:21+00:00",
+      "finished_utc": "2026-10-01T18:37:49+00:00",
       "group_rekeying": {
         "max_group_size": 50,
         "first_turn_groups_rekeyed": 0,
@@ -138,7 +138,7 @@
       "label_1_share": 0.4989
     },
     "step6_filter": {
-      "finished_utc": "2026-10-01T15:17:31+00:00",
+      "finished_utc": "2026-10-01T18:38:09+00:00",
       "working_set_size_target": 30000,
       "working_set_pairs": 30002,
       "subset_quota": {
@@ -152,7 +152,7 @@
       "unused_pool_pairs": 104860
     },
     "step7_split": {
-      "finished_utc": "2026-10-01T15:17:50+00:00",
+      "finished_utc": "2026-10-01T18:38:13+00:00",
       "leakage_check": "passed: every group_id is in exactly one split",
       "train_fitted": {
         "long_outlier_percentile": 99,
@@ -242,12 +242,12 @@
       }
     },
     "step8_shard": {
-      "finished_utc": "2026-10-01T15:18:03+00:00",
+      "finished_utc": "2026-10-01T18:38:17+00:00",
       "enabled": false,
       "reason": "single file is sufficient at this size"
     },
     "step9_store_processed": {
-      "finished_utc": "2026-10-01T15:19:09+00:00",
+      "finished_utc": "2026-10-01T18:38:33+00:00",
       "final_validation": "passed",
       "files": {
         "train": {
@@ -283,7 +283,7 @@
       }
     },
     "step10_review_sample": {
-      "finished_utc": "2026-10-01T15:19:15+00:00",
+      "finished_utc": "2026-10-01T18:38:37+00:00",
       "sheet": "label_review_v1.0.csv",
       "status": "written",
       "sample_size": 200

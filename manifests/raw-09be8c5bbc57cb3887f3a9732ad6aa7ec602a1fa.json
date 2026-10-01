@@ -2,7 +2,7 @@
   "hf_repo_id": "Anthropic/hh-rlhf",
   "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
   "source": "https://huggingface.co/datasets/Anthropic/hh-rlhf",
-  "scraped_utc": "2026-10-01T15:11:31+00:00",
+  "scraped_utc": "2026-10-01T18:35:42+00:00",
   "files": {
     "helpful-base/train.jsonl.gz": {
       "sha256": "518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4",
