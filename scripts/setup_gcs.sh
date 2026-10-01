@@ -8,6 +8,9 @@ HOLDOUT="${HOLDOUT:-${BUCKET}-holdout}"
 REGION="${REGION:-europe-west1}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
+# A new project has these APIs off: Cloud Storage (buckets) and IAM (service accounts)
+gcloud services enable storage.googleapis.com iam.googleapis.com --project="$PROJECT"
+
 create () {  # name, storage class
   gcloud storage buckets create "gs://$1" --project="$PROJECT" --location="$REGION" \
     --default-storage-class="$2" --uniform-bucket-level-access --public-access-prevention
