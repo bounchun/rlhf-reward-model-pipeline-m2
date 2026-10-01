@@ -8,8 +8,8 @@ Raw Data → Storage → Data Pipeline → ML Pipeline + MLOps → Model → Sca
 
 Short answers to the questions on the Milestone 1 assignment slides. Each links to the section with the full justification.
 
-| Slide question | Answer | Details |
-|---|---|---|
+| Slide question | Answer | 
+|---|---|
 | Select a suitable **raw data source** (public, licence checked) | `Anthropic/hh-rlhf` on Hugging Face, pinned to one commit. It is **MIT-licensed** and public, so it can be reused. | 
 | **At least 10,000 learning samples**? | Yes. There are ≈169k preference pairs in the source; the pipeline keeps a ≈30k working set plus ≈20% of prompt groups reserved as future data. Every figure is well above 10k. | 
 | **Realistic imperfections, missing values / other quality issues** | Missing or malformed fields, unparseable lines, chosen/rejected contexts that don't match, empty or identical replies, duplicates, length outliers, one-sided repeated phrases (possible poisoning), PII, and label noise (≈63% annotator agreement). Each is counted in the manifest. | 
