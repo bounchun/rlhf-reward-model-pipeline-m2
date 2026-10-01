@@ -82,7 +82,8 @@ I followed the module's Milestone 1 checklist and wrote one Python script for ea
 | **Quality checks** | `step4_quality_checks.py` looks for possible poisoning, personal data (emails, phone numbers) and length problems. `step10_review_sample.py` and `score_review.py` are for checking the labels by hand: the sheet of 200 pairs is created in v1.0, and I'll label and score it in M2. |
 | **Tests** | `tests/` has 22 unittest tests that run on fake data with problems planted on purpose, to check that the pipeline catches each one (`make test`). |
 
-Intermediate files (`data/interim/`) stay **local and git-ignored**. They still contain test rows before the split is applied, so they never go into a bucket that the training account can read.
+
+The in-between files that each step creates (`data/interim/`) stay on my machine and are never committed to Git. Before the split happens they still include the test rows, so I don't upload them to a bucket that the training account can read.
 
 **Files in the repository**
 
