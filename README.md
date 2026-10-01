@@ -55,9 +55,9 @@ The pipeline counts and logs every one of these (section 10).
 
 ## Repository layout and pipeline steps
 
-The code follows the lecturer's Milestone 1 checklist: one documented `.py` script per step, each with a stated input and output, run in order by `make all`. Every step records what it did (counts, parameters, checksums) in `manifests/v1.0.json`.
+I followed the module's Milestone 1 checklist and wrote one Python script for each step. Each script says at the top what it reads and what it writes, and `make all` runs them in order. As each step runs, it writes down what it did (how many rows it kept or dropped, the settings it used, and file checksums) in `manifests/v1.0.json`, so the whole run can be checked afterwards.
 
-| Lecturer's checklist | Script (`src/`) | Input → output |
+| Module checklist | Script (`src/`) | Input → output |
 |---|---|---|
 | Script to scrape the raw data | `step1_scrape_raw.py` | Hugging Face (pinned commit) → `data/downloads/`, `manifests/raw-⟨rev⟩.json` |
 | Script to move the raw data into storage | `step2_store_raw.py` | `data/downloads/` → `gs://bc-rlhf-reward-2026/raw/` (write-once, read-back verified) |
