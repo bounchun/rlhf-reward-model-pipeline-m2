@@ -34,15 +34,18 @@ Short answers to the questions on the Milestone 1 assignment slides.
 | **Target** | `label` = 1 if A was preferred, 0 if B was preferred |
 | **Metrics** | Primary: pairwise accuracy with a bootstrap 95% CI. Secondary: ROC-AUC, F1, and accuracy per subset. |
 
-**Why this data gives room to demonstrate data handling.** The imperfections are real, but they are textual rather than NaN cells:
 
-- malformed turn structure
-- empty or whitespace-only replies
-- pairs where `chosen` is identical to `rejected`, so they carry no signal
-- exact duplicates, and many pairs that share the same opening prompt
-- extreme-length outliers
-- four subsets collected under different annotation protocols
-- a built-in **position leak**: the preferred reply is always in the `chosen` column
+**Why I picked this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
+
+- 788 pairs where the "chosen" and "rejected" replies are exactly the same, so there's nothing to learn from them
+- 329 pairs where the two versions of the conversation don't match before the final reply
+- 194 empty replies and 11 conversations with broken turn structure
+- lots of repetition: 168k pairs come from only about 62k opening prompts, which is a leakage risk if you split by row
+- some very long replies (the top 1% are over 210 words)
+- four subsets collected in different ways, with different length habits (section 10b)
+- a position leak: the preferred reply is always in the `chosen` column, so a model could learn the column instead of the preference
+
+I also checked for exact duplicates, but there were none. Every one of these checks is counted in the manifest (section 10).
 
 The pipeline counts and logs every one of these (section 10).
 
