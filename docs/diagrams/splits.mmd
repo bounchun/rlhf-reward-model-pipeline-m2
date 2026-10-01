@@ -1,0 +1,27 @@
+flowchart TD
+  A["≈169k raw pairs<br/>4 subsets, official train + test pooled"]
+  B["Cleaned pairs<br/>(step 3 - drop counts in manifest)"]
+  C["Grouped by opening prompt<br/>group_id; very large generic groups re-keyed"]
+  D{"b1 = sha256(group_id + salt) mod 100"}
+  F1["F1 future reserve<br/>b1 0-9 (≈10% of groups)"]
+  F2["F2 future reserve<br/>b1 10-19 (≈10% of groups)"]
+  P["Development pool<br/>b1 20-99"]
+  W["Working set ≈30k pairs<br/>whole groups, stratified by subset"]
+  E{"b2 = sha256(group_id + salt) mod 10"}
+  TR["train ≈80%<br/>b2 0-7"]
+  DV["dev ≈10%<br/>b2 8"]
+  TE["test ≈10%<br/>b2 9"]
+  A --> B --> C --> D
+  D --> F1
+  D --> F2
+  D --> P --> W --> E
+  E --> TR
+  E --> DV
+  E --> TE
+
+  classDef fut fill:#ffe3e3,stroke:#c92a2a,color:#111;
+  classDef tr fill:#e6fcf5,stroke:#0ca678,color:#111;
+  classDef box fill:#ffffff,stroke:#495057,color:#111;
+  class F1,F2,TE fut;
+  class TR,DV tr;
+  class A,B,C,P,W box;

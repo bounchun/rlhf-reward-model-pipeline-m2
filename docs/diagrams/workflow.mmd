@@ -1,0 +1,35 @@
+flowchart TD
+  HF[("Hugging Face<br/>Anthropic/hh-rlhf<br/>pinned commit")]
+  S1["step1_scrape_raw.py<br/>download 8 files + SHA-256"]
+  DL[/"data/downloads/ (local)"/]
+  S2["step2_store_raw.py<br/>upload, write-once, read-back check"]
+  RAW[("gs://bucket/raw/")]
+  S3["step3_clean.py<br/>validate + 5 cleaning rules"]
+  S4["step4_quality_checks.py<br/>poisoning screen, PII, lengths"]
+  AUD[("gs://bucket/audit/")]
+  S5["step5_features.py<br/>group_id, label, features"]
+  S6["step6_filter.py<br/>future reserve + 30k working set"]
+  S7["step7_split.py<br/>train / dev / test, train-only stats"]
+  S8["step8_shard.py<br/>optional, off by default"]
+  S9["step9_store_processed.py<br/>final validation + upload"]
+  PROC[("gs://bucket/processed/<br/>train, dev")]
+  HOLD[("gs://bucket-holdout/<br/>test, future F1/F2")]
+  S10["step10_review_sample.py<br/>blind 200-pair sheet"]
+  Q["sample_queries.py"]
+  MAN[["manifests/v1.0.json<br/>every step logs counts + checksums"]]
+
+  HF --> S1 --> DL --> S2 --> RAW --> S3 --> S4 --> AUD
+  S3 --> S5 --> S6 --> S7 --> S8 --> S9
+  S9 --> PROC
+  S9 --> HOLD
+  S7 --> S10
+  PROC --> Q
+  S3 -.-> MAN
+  S9 -.-> MAN
+
+  classDef step fill:#e8eefc,stroke:#3b5bdb,color:#111;
+  classDef store fill:#fff4e0,stroke:#e67700,color:#111;
+  classDef local fill:#f1f3f5,stroke:#868e96,color:#111;
+  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,Q step;
+  class RAW,AUD,PROC,HOLD,HF store;
+  class DL,MAN local;
