@@ -25,14 +25,14 @@ Short answers to the questions on the Milestone 1 assignment slides.
 
 | | |
 |---|---|
-| **Source** | [`Anthropic/hh-rlhf`](https://huggingface.co/datasets/Anthropic/hh-rlhf) on Hugging Face, pinned to commit 09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa |
-| **Licence** | MIT (public, reuse permitted). No intended personal data; a regex PII scan is run anyway (step 4, section 10). |
-| **Size** | ≈169k preference pairs (≈160.8k official train + ≈8.5k official test) in four subsets: `helpful-base`, `harmless-base`, `helpful-online`, `helpful-rejection-sampled`. `red-team-attempts` is excluded (different schema, no preference pairs). |
-| **Provenance** | Released with Bai et al. (2022). The responses were generated mostly by Anthropic's 52B language models. The preference labels come from crowdworkers: mostly US-based MTurk workers (≈80%), the rest hired through Upwork. The data was collected in three tranches, in this order: **base → rejection-sampled → online** (the online tranche arrived weekly over ≈5 weeks). There is **one label per pair**, and the paper reports only ≈63% agreement between researchers and crowdworkers. |
-| **Raw record** | Two strings, `chosen` and `rejected`. Each is a whole multi-turn conversation (`\n\nHuman: … \n\nAssistant: …`), and they differ only in the final Assistant turn. |
-| **Task** | Binary pairwise preference classification: given a dialogue `context` and two candidate replies **A** and **B**, predict which one the human preferred. This is the reward-modelling step of RLHF. |
-| **Target** | `label` = 1 if A was preferred, 0 if B was preferred |
-| **Metrics** | Primary: pairwise accuracy with a bootstrap 95% CI. Secondary: ROC-AUC, F1, and accuracy per subset. |
+| **Source** | [`Anthropic/hh-rlhf`](https://huggingface.co/datasets/Anthropic/hh-rlhf) on Hugging Face. I pinned it to commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa` so the data can't change under me. |
+| **Licence** | MIT, so it's public and can be reused. It isn't meant to contain personal data, but I still run a simple PII scan for emails and phone numbers (step 4). |
+| **Size** | 169,352 preference pairs (160,800 from the official train split and 8,552 from test), across four subsets: `helpful-base`, `harmless-base`, `helpful-online` and `helpful-rejection-sampled`. I left out `red-team-attempts` because it has a different format and no pairs to compare. |
+| **Where it comes from** | It was released with the Bai et al. (2022) paper. Most replies were written by Anthropic's 52B language models, and the preferences were given by crowdworkers, about 80% of them US-based MTurk workers and the rest hired through Upwork. It was collected in three rounds: base first, then rejection-sampled, then online (added weekly over about 5 weeks). Each pair has only one label, and the paper reports that researchers and crowdworkers agreed only about 63% of the time, so the labels are noisy. |
+| **What a record looks like** | Two text fields, `chosen` and `rejected`. Each holds the whole conversation (`\n\nHuman: … \n\nAssistant: …`), and the two are identical except for the last Assistant reply. |
+| **Task** | Given a conversation (`context`) and two possible replies, A and B, predict which one the person preferred. This is a binary classification problem, and it's the reward-model step of RLHF. |
+| **Target** | `label` = 1 if A was preferred, 0 if B was preferred. |
+| **Metrics** | Mainly pairwise accuracy, with a bootstrap 95% confidence interval. I'll also report ROC-AUC, F1 and accuracy for each subset. |
 
 
 **Why I picked this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
