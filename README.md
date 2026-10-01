@@ -105,7 +105,7 @@ manifests/                   committed dataset manifests (lineage)
 
 **Workflow: how the scripts connect**
 
-![Pipeline workflow: step 1 to step 10](docs/img/workflow.png)
+<p align="center"><img src="docs/img/workflow.png" alt="Pipeline workflow: step 1 to step 10" width="480"></p>
 
 ## Screenshots of the real run
 
@@ -156,7 +156,7 @@ Intermediate step outputs are kept locally in `data/interim/v1.0/` (git-ignored)
 
 **Data organisation: where every file lives**
 
-![Data organisation across the two buckets, the local working folder and GitHub](docs/img/data_organisation.png)
+<p align="center"><img src="docs/img/data_organisation.png" alt="Data organisation across the two buckets, the local working folder and GitHub" width="700"></p>
 
 ## 3. Database / object storage decision 
 
@@ -216,7 +216,7 @@ Three mechanisms work together, following Lecture 2, slide 32: code, config and 
 
 **Choice:** a fixed **train/dev/test split (80/10/10) on a 30k-pair working set**, plus a **future-data reserve** held back for M4. Cross-validation is not used.
 
-![How the data is split: future reserve, working set, train/dev/test](docs/img/splits.png)
+<p align="center"><img src="docs/img/splits.png" alt="How the data is split: future reserve, working set, train/dev/test" width="460"></p>
 
 **Why this matches the task and how the system will be used.** In M4 the model runs behind an API and scores reply pairs for **new conversations it has never seen**. The evaluation reproduces that situation in three ways:
 - **Group split.** Splitting by opening prompt means dev and test contain only unseen conversations. With a plain row split, near-copies of the same prompt could land in train and test, and the test score would be too optimistic.
