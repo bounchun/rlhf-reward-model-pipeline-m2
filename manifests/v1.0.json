@@ -1,0 +1,292 @@
+{
+  "dataset_version": "hhrlhf-v1.0",
+  "created_utc": "2026-10-01T15:13:28+00:00",
+  "pipeline_git_commit": "dfa425f977bd6b0c9d07063dc3d35d5c2e22573e-dirty",
+  "hf_repo_id": "Anthropic/hh-rlhf",
+  "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
+  "library_versions": {
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "pyarrow": "23.0.1",
+    "gcsfs": "2025.12.0",
+    "requests": "2.32.4"
+  },
+  "steps": {
+    "step3_clean": {
+      "finished_utc": "2026-10-01T15:13:28+00:00",
+      "raw_files_sha256": {
+        "helpful-base/train.jsonl.gz": "518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4",
+        "helpful-base/test.jsonl.gz": "8be3fc1a13b27901631696f2be6f184c799f1baeaf145f53ac5db24960adc37b",
+        "harmless-base/train.jsonl.gz": "bf3e1ecd3db61bf21d190f69351d26670c67aababa0fd282fa008c17a7202217",
+        "harmless-base/test.jsonl.gz": "ebfaaed21162a4de120ae85366075b34425e2a6303fac59b99555002f7016f03",
+        "helpful-online/train.jsonl.gz": "0994d18b82083f5c084ce04071b683958a724df8c7215ab1d851986642d36a2a",
+        "helpful-online/test.jsonl.gz": "39a475cc7e0df972902f8e3a0972726fce826ac65369bda8c671de4330c60a10",
+        "helpful-rejection-sampled/train.jsonl.gz": "0cea2d2ab2187624ec1314e8cc6fb579f0fa987b3a33e8102b7556ed4d255f64",
+        "helpful-rejection-sampled/test.jsonl.gz": "abc35dbc56015db1dae0faa484514ccbc3eee0133bfcd557fc69250619b028bb"
+      },
+      "raw_pairs": {
+        "harmless-base/test": 2312,
+        "harmless-base/train": 42537,
+        "helpful-base/test": 2354,
+        "helpful-base/train": 43835,
+        "helpful-online/test": 1137,
+        "helpful-online/train": 22007,
+        "helpful-rejection-sampled/test": 2749,
+        "helpful-rejection-sampled/train": 52421
+      },
+      "unparseable_json_lines": 0,
+      "rows_dropped": {
+        "0_unparseable_json": 0,
+        "1_malformed_or_missing": 11,
+        "2_context_mismatch": 329,
+        "4a_empty_response": 194,
+        "4b_identical_responses": 788,
+        "5_exact_duplicates": 0
+      },
+      "pairs_after_cleaning": 168030
+    },
+    "step4_quality_checks": {
+      "finished_utc": "2026-10-01T15:16:48+00:00",
+      "validation": {
+        "pair_id_unique": true,
+        "no_empty_replies": true,
+        "no_identical_replies": true,
+        "known_subsets_only": true,
+        "no_nulls": true
+      },
+      "pii_scan": {
+        "email": {
+          "pairs": 304,
+          "by_subset": {
+            "harmless-base": 160,
+            "helpful-base": 23,
+            "helpful-online": 109,
+            "helpful-rejection-sampled": 12
+          }
+        },
+        "phone": {
+          "pairs": 728,
+          "by_subset": {
+            "harmless-base": 309,
+            "helpful-base": 58,
+            "helpful-online": 294,
+            "helpful-rejection-sampled": 67
+          }
+        }
+      },
+      "length_by_subset": {
+        "harmless-base": {
+          "pairs": 44639,
+          "median_words_chosen": 21.0,
+          "median_words_rejected": 26.0,
+          "share_chosen_longer": 0.4122
+        },
+        "helpful-base": {
+          "pairs": 45935,
+          "median_words_chosen": 32.0,
+          "median_words_rejected": 24.0,
+          "share_chosen_longer": 0.5799
+        },
+        "helpful-online": {
+          "pairs": 23012,
+          "median_words_chosen": 98.0,
+          "median_words_rejected": 103.0,
+          "share_chosen_longer": 0.4469
+        },
+        "helpful-rejection-sampled": {
+          "pairs": 54444,
+          "median_words_chosen": 55.0,
+          "median_words_rejected": 43.0,
+          "share_chosen_longer": 0.5615
+        }
+      },
+      "poison_screen": {
+        "flagged_ngrams": 0,
+        "flagged_pairs": 0,
+        "params": {
+          "ngram": 8,
+          "min_pairs": 20,
+          "one_sided_ratio": 0.9,
+          "max_report": 200,
+          "_comment": "flag word n-grams occurring one-sidedly (chosen vs rejected) in >= min_pairs pairs"
+        }
+      },
+      "files": {
+        "audit/poison_screen.csv": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.0/poison_screen.csv",
+          "sha256": "9029e1731a21cd43210bb2d7ae1dde8a8c78f42e2063ffdbfdcae801bd0187e0"
+        },
+        "audit/poison_flagged_pairs.csv": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.0/poison_flagged_pairs.csv",
+          "sha256": "4b0191604eb50fff0b4866e85ab14ac65aa88f3a60cf130535edc3e07cc474cd"
+        },
+        "audit/quality_report.json": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.0/quality_report.json",
+          "sha256": "1b3d5f5ed4979614c30b537e26ef90423380d8388a015c52f55fc5a2daadb64a"
+        }
+      }
+    },
+    "step5_features": {
+      "finished_utc": "2026-10-01T15:17:21+00:00",
+      "group_rekeying": {
+        "max_group_size": 50,
+        "first_turn_groups_rekeyed": 0,
+        "pairs_rekeyed_on_full_context": 0
+      },
+      "groups": 61961,
+      "largest_group": 48,
+      "label_1_share": 0.4989
+    },
+    "step6_filter": {
+      "finished_utc": "2026-10-01T15:17:31+00:00",
+      "working_set_size_target": 30000,
+      "working_set_pairs": 30002,
+      "subset_quota": {
+        "harmless-base": 8015,
+        "helpful-base": 8213,
+        "helpful-online": 4106,
+        "helpful-rejection-sampled": 9666
+      },
+      "future_f1_pairs": 16516,
+      "future_f2_pairs": 16652,
+      "unused_pool_pairs": 104860
+    },
+    "step7_split": {
+      "finished_utc": "2026-10-01T15:17:50+00:00",
+      "leakage_check": "passed: every group_id is in exactly one split",
+      "train_fitted": {
+        "long_outlier_percentile": 99,
+        "long_outlier_threshold_words": 210.0
+      },
+      "splits": {
+        "train": {
+          "pairs": 24122,
+          "groups": 8894,
+          "subset_share": {
+            "harmless-base": 0.2666,
+            "helpful-base": 0.2753,
+            "helpful-online": 0.1375,
+            "helpful-rejection-sampled": 0.3206
+          },
+          "label_1_share": 0.4981,
+          "long_outlier_share": 0.018,
+          "refusal_any_share": 0.0009
+        },
+        "dev": {
+          "pairs": 2876,
+          "groups": 1074,
+          "subset_share": {
+            "harmless-base": 0.2889,
+            "helpful-base": 0.2514,
+            "helpful-online": 0.1238,
+            "helpful-rejection-sampled": 0.3359
+          },
+          "label_1_share": 0.517,
+          "long_outlier_share": 0.0219,
+          "refusal_any_share": 0.0007
+        },
+        "test": {
+          "pairs": 3004,
+          "groups": 1095,
+          "subset_share": {
+            "harmless-base": 0.2503,
+            "helpful-base": 0.2763,
+            "helpful-online": 0.1445,
+            "helpful-rejection-sampled": 0.3289
+          },
+          "label_1_share": 0.491,
+          "long_outlier_share": 0.0196,
+          "refusal_any_share": 0.0007
+        },
+        "future_f1": {
+          "pairs": 16516,
+          "groups": 6141,
+          "subset_share": {
+            "harmless-base": 0.2611,
+            "helpful-base": 0.2722,
+            "helpful-online": 0.1366,
+            "helpful-rejection-sampled": 0.3301
+          },
+          "label_1_share": 0.4962,
+          "long_outlier_share": 0.019,
+          "refusal_any_share": 0.0008
+        },
+        "future_f2": {
+          "pairs": 16652,
+          "groups": 6130,
+          "subset_share": {
+            "harmless-base": 0.259,
+            "helpful-base": 0.2791,
+            "helpful-online": 0.1375,
+            "helpful-rejection-sampled": 0.3245
+          },
+          "label_1_share": 0.4999,
+          "long_outlier_share": 0.0201,
+          "refusal_any_share": 0.0011
+        }
+      },
+      "params": {
+        "tdt_salt": "tdt-v1",
+        "train_buckets": [
+          0,
+          8
+        ],
+        "dev_buckets": [
+          8,
+          9
+        ],
+        "test_buckets": [
+          9,
+          10
+        ]
+      }
+    },
+    "step8_shard": {
+      "finished_utc": "2026-10-01T15:18:03+00:00",
+      "enabled": false,
+      "reason": "single file is sufficient at this size"
+    },
+    "step9_store_processed": {
+      "finished_utc": "2026-10-01T15:19:09+00:00",
+      "final_validation": "passed",
+      "files": {
+        "train": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.0/train.parquet",
+          "sha256": "67cbbd03138760c2683dbb31ec470393d94056c652c4749382185e23ba6fea36",
+          "bytes": 20116515,
+          "rows": 24122
+        },
+        "dev": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.0/dev.parquet",
+          "sha256": "6e072f4d314db7c5bb2c0d1a365f7a7afd39750f6a62d9ec430eed594b71105f",
+          "bytes": 2314823,
+          "rows": 2876
+        },
+        "test": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.0/test.parquet",
+          "sha256": "291311af9fe8f8eef16ccb3a601c18baabf98a29e06ef1e7a85cba47134f895c",
+          "bytes": 2454531,
+          "rows": 3004
+        },
+        "future_f1": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.0/future_f1.parquet",
+          "sha256": "c8526b709971c7c98e2bacaab9779e6b010955bc2bb36d4b2c9eecc364eae82d",
+          "bytes": 13822476,
+          "rows": 16516
+        },
+        "future_f2": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.0/future_f2.parquet",
+          "sha256": "52db082c972659129324788d12e0d9564f5ecefbd80f314fb9df527a15d8aa12",
+          "bytes": 13996199,
+          "rows": 16652
+        }
+      }
+    },
+    "step10_review_sample": {
+      "finished_utc": "2026-10-01T15:19:15+00:00",
+      "sheet": "label_review_v1.0.csv",
+      "status": "written",
+      "sample_size": 200
+    }
+  }
+}

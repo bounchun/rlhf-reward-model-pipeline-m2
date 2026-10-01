@@ -1,0 +1,49 @@
+{
+  "hf_repo_id": "Anthropic/hh-rlhf",
+  "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
+  "source": "https://huggingface.co/datasets/Anthropic/hh-rlhf",
+  "scraped_utc": "2026-10-01T15:11:31+00:00",
+  "files": {
+    "helpful-base/train.jsonl.gz": {
+      "sha256": "518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4",
+      "bytes": 16200131,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-base/train.jsonl.gz"
+    },
+    "helpful-base/test.jsonl.gz": {
+      "sha256": "8be3fc1a13b27901631696f2be6f184c799f1baeaf145f53ac5db24960adc37b",
+      "bytes": 875191,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-base/test.jsonl.gz"
+    },
+    "harmless-base/train.jsonl.gz": {
+      "sha256": "bf3e1ecd3db61bf21d190f69351d26670c67aababa0fd282fa008c17a7202217",
+      "bytes": 13197306,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/harmless-base/train.jsonl.gz"
+    },
+    "harmless-base/test.jsonl.gz": {
+      "sha256": "ebfaaed21162a4de120ae85366075b34425e2a6303fac59b99555002f7016f03",
+      "bytes": 742801,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/harmless-base/test.jsonl.gz"
+    },
+    "helpful-online/train.jsonl.gz": {
+      "sha256": "0994d18b82083f5c084ce04071b683958a724df8c7215ab1d851986642d36a2a",
+      "bytes": 20127228,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-online/train.jsonl.gz"
+    },
+    "helpful-online/test.jsonl.gz": {
+      "sha256": "39a475cc7e0df972902f8e3a0972726fce826ac65369bda8c671de4330c60a10",
+      "bytes": 1053578,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-online/test.jsonl.gz"
+    },
+    "helpful-rejection-sampled/train.jsonl.gz": {
+      "sha256": "0cea2d2ab2187624ec1314e8cc6fb579f0fa987b3a33e8102b7556ed4d255f64",
+      "bytes": 25697148,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-rejection-sampled/train.jsonl.gz"
+    },
+    "helpful-rejection-sampled/test.jsonl.gz": {
+      "sha256": "abc35dbc56015db1dae0faa484514ccbc3eee0133bfcd557fc69250619b028bb",
+      "bytes": 1361231,
+      "uri": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/helpful-rejection-sampled/test.jsonl.gz"
+    }
+  },
+  "stored_prefix": "gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa"
+}
