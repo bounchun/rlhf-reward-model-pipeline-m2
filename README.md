@@ -6,7 +6,7 @@ Raw Data → Storage → Data Pipeline → ML Pipeline + MLOps → Model → Sca
 
 ## Milestone 1 questions at a glance
 
-Short answers to the questions on the Milestone 1 assignment slides. Each links to the section with the full justification.
+Short answers to the questions on the Milestone 1 assignment slides. 
 
 | Slide question | Answer | 
 |---|---|
