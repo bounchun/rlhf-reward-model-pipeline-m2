@@ -2,7 +2,7 @@
 
 ## Milestone 1 questions at a glance
 
-Short answers to the questions on the Milestone 1 assignment slides. 
+The sections below explain each answer in more detail.
 
 | Slide question | Answer |
 |---|---|
