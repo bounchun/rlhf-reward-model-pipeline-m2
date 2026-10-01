@@ -139,13 +139,6 @@ They are exact copies of the files from Hugging Face, and I never edit them. Onl
 
 I created both buckets with `scripts/setup_gcs.sh`, which also sets their storage class, versioning, clean-up rules and permissions. Screenshots of the real buckets are in [Screenshots of the real run](#screenshots-of-the-real-run).
 
-**Why object storage suits this data:**
-- The raw data is a small number of immutable files that are only ever read in bulk.
-- Keeping an untouched copy means a faulty cleaning rule can be fixed and re-run without collecting the data again (Lecture 3: *keep an immutable copy of raw data*).
-
-The buckets are created by `scripts/setup_gcs.sh`, which sets the storage classes, versioning, lifecycle rules and IAM described in sections 1–5.
-
-Screenshots of the real buckets are in [Screenshots of the real run](#screenshots-of-the-real-run).
 
 ## 2. Processed data storage and file formats 
 
