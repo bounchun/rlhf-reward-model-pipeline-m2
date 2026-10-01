@@ -1,13 +1,14 @@
 # Only libraries used in the module's lab material (GCS tutorial, NumPy / Pandas labs),
 # pinned to exact versions so every install is identical (no --upgrade).
-# Versions match what Google Colab already ships (pandas, numpy, requests) and stay inside
-# its pre-installed packages' limits (numba: numpy<2.3; datasets: fsspec<=2026.2.0), so
-# installing them in Colab does not break Colab's own tools.
-# Python 3.11+ ; everything else (json, hashlib, gzip, re, unittest, ...) is standard library.
+# These are exactly the versions pre-installed in Google Colab (Python 3.13, Oct 2026),
+# so `pip install -r requirements.txt` in Colab changes nothing and causes no conflicts,
+# while a local install reproduces the same environment.
+# Everything else (json, hashlib, gzip, re, unittest, ...) is Python standard library.
 pandas==2.2.3
-numpy==2.0.2
-gcsfs==2026.2.0
+numpy==2.1.3
+gcsfs==2025.12.0
+fsspec==2025.12.0
 requests==2.32.4
 # Exception: Parquet engine. The GCS tutorial recommends Parquet, and pandas needs an
 # engine to read/write it (to_parquet / read_parquet); pyarrow is pandas' default one.
-pyarrow==25.0.1
+pyarrow==23.0.1
