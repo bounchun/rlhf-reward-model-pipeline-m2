@@ -4,20 +4,20 @@
 
 Short answers to the questions on the Milestone 1 assignment slides. 
 
-| Slide question | Answer | 
+| Slide question | Answer |
 |---|---|
-| Select a suitable **raw data source** (public, licence checked) | `Anthropic/hh-rlhf` on Hugging Face, pinned to one commit. It is **MIT-licensed** and public, so it can be reused. | 
-| **At least 10,000 learning samples**? | Yes. There are ≈169k preference pairs in the source; the pipeline keeps a ≈30k working set plus ≈20% of prompt groups reserved as future data. Every figure is well above 10k. | 
-| **Realistic imperfections, missing values / other quality issues** | Missing or malformed fields, unparseable lines, chosen/rejected contexts that don't match, empty or identical replies, duplicates, length outliers, one-sided repeated phrases (possible poisoning), PII, and label noise (≈63% annotator agreement). Each is counted in the manifest. | 
-| Define a **meaningful AI/ML task** | Pairwise preference prediction: which of two replies did a human prefer? This is the reward-model step of RLHF. | 
-| Identify the **target variable** and **relevant features** | Target `label` (1 = reply A preferred). Features: `context`, `response_a`, `response_b`, `num_turns`, length features. Audit-only columns: `subset`, refusal flags, `is_long_outlier`. | 
-| **Evaluation strategy**: train/dev/test or cross-validation, justified | A group-based 80/10/10 train/dev/test split instead of CV: data is plentiful, and a transformer is too costly to train k times. The split is chosen to **match how the system will be used**: it will score conversations it has never seen. | 
-| Where will the **raw data** live? | `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`, unchanged JSONL.gz, write-once, versioned bucket | 
-| Where will the **processed data** be stored? | Train/dev in `gs://bc-rlhf-reward-2026/processed/v1.0/`; test and future data in a separate `bc-rlhf-reward-2026-holdout` bucket | 
-| What **file formats**? | Raw: JSONL.gz (original). Processed: Parquet (Snappy). Manifests: JSON. Audit reports: CSV/JSON. | 
-| **Database or object storage**? | Object storage only (GCS). The workload is bulk sequential reads with no joins, transactions or similarity search. | 
-| How are **data versions identified**? | Dataset version `v1.0` (scheme `vMAJOR.MINOR`) in every processed path, a manifest with SHA-256 checksums and the Git commit, a Git tag, and GCS Object Versioning | 
-| How will the system **access the data**? | `gcsfs` through Application Default Credentials. The bucket name comes from a Colab Secret or environment variable. Least-privilege service accounts; training cannot read the holdout bucket. | 
+| Select a suitable **raw data source** (public, licence checked) | I use `Anthropic/hh-rlhf` from Hugging Face, pinned to one fixed commit. It's public and under the MIT licence, so I'm allowed to use it. |
+| **At least 10,000 learning samples**? | Yes, easily. The source has 169,352 preference pairs. I work with a 30,002-pair subset (train/dev/test) and keep another 33,168 pairs aside as "future" data for later milestones. |
+| **Realistic imperfections, missing values / other quality issues** | Yes, plenty. In my run I found 788 pairs where both replies are identical, 329 where the two conversations don't match, 194 empty replies and 11 broken conversations. There are also very long replies, possible personal data (emails and phone numbers) and noisy labels: the original paper reports only about 63% agreement between annotators. I also screen for duplicates and suspicious repeated phrases (possible poisoning). Every check is counted in the manifest. |
+| Define a **meaningful AI/ML task** | Given a conversation and two possible replies, predict which one a human preferred. This is how a reward model is trained in RLHF. |
+| Identify the **target variable** and **relevant features** | The target is `label` (1 if reply A was preferred, 0 if B). The model inputs are `context`, `response_a`, `response_b`, `num_turns` and the reply lengths. `subset`, the refusal flags and `is_long_outlier` are only used to check results, not for training. |
+| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a transformer k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, which is how it will be used in practice. |
+| Where will the **raw data** live? | In my Google Cloud bucket: `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`. The files are the original JSONL.gz files, never edited, and the bucket keeps old versions. |
+| Where will the **processed data** be stored? | Train and dev go in `gs://bc-rlhf-reward-2026/processed/v1.0/`. Test and future data go in a separate bucket, `bc-rlhf-reward-2026-holdout`, so training can't read them by mistake. |
+| What **file formats**? | Raw data stays as JSONL.gz, as downloaded. Processed data is Parquet. Manifests are JSON, and audit reports are CSV or JSON. |
+| **Database or object storage**? | Object storage only (Google Cloud Storage). Training just reads whole files from start to end. There are no joins, transactions or searches, so a database would add nothing. |
+| How are **data versions identified**? | Each version has its own folder (`v1.0`, then `v1.1` and so on). A manifest file records the checksums of every file and the Git commit of the code. I also tag the version in Git (`data-v1.0`), and the buckets keep old copies of overwritten files. |
+| How will the system **access the data**? | Through `gcsfs`, using my Google login, with no key files in the code. The bucket name comes from a Colab Secret. Each service account only has the access it needs, and the training account can't read the holdout bucket at all. |
 
 ---
 
