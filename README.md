@@ -160,21 +160,21 @@ The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and
 
 ## 3. Database / object storage decision 
 
-The project uses **object storage (GCS) only, with no database**, for these reasons:
+I only use **object storage (Google Cloud Storage), no database**. A database wouldn't help here:
 
-- **Access pattern:** training reads whole splits sequentially. There are no transactions, joins or point lookups, which is what SQL is built for.
-- **Schema:** it is fixed and simple, so a NoSQL document store adds nothing.
-- **No similarity search:** the task compares two *given* replies. Nothing is retrieved from a corpus, so a vector database is not needed.
-- **Inference:** the M4 service receives the context and both replies in each request. It needs only the model artefact.
+- Training reads whole splits from start to finish. There are no transactions, joins or single-row lookups, which is what SQL databases are for.
+- The columns are fixed and simple, so a NoSQL store adds nothing.
+- The task compares two replies that are already given. Nothing has to be searched for, so a vector database isn't needed either.
+- In M4 the API will receive the conversation and both replies with each request, so it only needs the trained model.
 
-**Two buckets, with different access and storage tiers** (Lecture 3, *storage tiers*):
+**Two buckets, with different access and storage classes** (Lecture 3, *storage tiers*):
 
-| Bucket | Contents | Class | Who has access |
+| Bucket | Contents | Storage class | Who can access it |
 |---|---|---|---|
-| `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (hot data, read every experiment) | me and the pipeline/training identities |
-| `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely, once per final model or in M4) | me and the pipeline only. Training code has **no** permission here. |
+| `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (used in every experiment) | me, the pipeline and the training account |
+| `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely: once per final model, or in M4) | me and the pipeline only. The training account has **no** access. |
 
-Putting the test set in its own bucket makes accidental test leakage impossible at the permission level, not just by convention. Storage cost for data this small is negligible. This decision will be revisited in M4 if logging predictions needs a small database.
+Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission, not just because I promised not to. Storing this little data costs almost nothing. If M4 needs to log predictions, I'll look at adding a small database then.
 
 ## 4. Data versioning 
 
