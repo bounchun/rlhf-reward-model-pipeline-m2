@@ -407,31 +407,31 @@ In most of the helpfulness data, people tended to prefer the longer reply. In `h
 
 ## 11. Data bias and audit plan
 
-This section uses two course readings: the *Data bias in LLM and generative AI applications* blog post (MOSTLY AI, 2023) and *Who Audits the Auditors?* (Costanza-Chock et al., FAccT 2022). hh-rlhf is itself a set of human judgements, so a reward model trained on it learns the crowdworkers' biases as well as their preferences.
+This section draws on two course readings: the MOSTLY AI blog post *Data bias in LLM and generative AI applications* (2023) and *Who Audits the Auditors?* (Costanza-Chock et al., FAccT 2022). hh-rlhf is a collection of human judgements, so a reward model trained on it picks up the crowdworkers' biases along with their preferences.
 
 | Bias type (MOSTLY AI) | How it shows up in hh-rlhf | What this project does |
 |---|---|---|
-| **Selection bias** | Mostly US-based, English-speaking MTurk workers wrote the prompts and gave the labels, so other languages, cultures and user groups are under-represented. The subset sizes are also unequal. | Recorded in this data card as a known limit on who the model generalises to. The working set is stratified by subset. Results are reported per slice (section 6). |
-| **Implicit bias** (annotators) | Each pair has one subjective label, and researcher–crowdworker agreement was only ≈63%. The paper notes the crowdworker pool changed over the project. | 200-pair human review (sheet created by step 10; labelling planned for M2) to estimate label noise. Accuracy is read against that noise ceiling, not against 100%. |
-| **Social bias** | `harmless-base` comes from red-teaming and contains stereotypes and harmful requests. The model may learn to reward refusals in general, or particular stereotyped wording. | Refusal flags plus a per-subset slice. In M2, a qualitative review of the highest-scoring and lowest-scoring replies on the harmless slice. |
-| **Automation bias** / recursion | The responses were written by a language model, not by people. Crowdworkers can also use LLMs themselves. | No synthetic augmentation (section 10). The human review sample (M2) keeps a person checking the data. |
-| **Temporal bias** | Collected in 2021–22 in three tranches. Preferences reflect models and norms from that time. | Pinned HF revision. Per-tranche slices. Drift check in M4 (section 6). |
-| **Length bias** (known reward-model failure) | Longer replies may be preferred whatever their quality. | `len_diff` feature, a length-bucket slice, and an M2 analysis of P(chosen is longer). |
+| **Selection bias** | The prompts and labels come mostly from US-based, English-speaking MTurk workers, so other languages, cultures and groups of users are under-represented. The subsets are also different sizes. | I note it here as a limit on who the model will work well for. The working set keeps the subset mix, and results are reported per slice (section 6). |
+| **Implicit bias** (annotators) | Each pair has one subjective label, and researchers and crowdworkers agreed only about 63% of the time. The paper also says the group of crowdworkers changed during the project. | A 200-pair review by hand (sheet made by step 10, labelling in M2) to estimate how noisy the labels are. I'll judge accuracy against that ceiling, not against 100%. |
+| **Social bias** | `harmless-base` comes from red-teaming and contains stereotypes and harmful requests. The model might learn to reward any refusal, or certain stereotyped wording. | Refusal flags and a per-subset slice. In M2, I'll read the highest- and lowest-scoring replies on the harmless slice. |
+| **Automation bias** / feedback loops | The replies were written by a language model, not by people, and crowdworkers may use AI tools themselves. | No generated data is added (section 10). The review by hand (M2) keeps a person checking the data. |
+| **Time bias** | Collected in 2021–22 in three rounds, so the preferences reflect the models and norms of that time. | Pinned data version, a slice per collection round, and a drift check in M4 (section 6). |
+| **Length bias** (a known reward-model problem) | People may prefer longer replies whatever their quality. | The `len_diff` column, a length slice, and an M2 analysis of how often the chosen reply is the longer one (first result in section 10b). |
 
-**Audit practices adopted, following Costanza-Chock et al. (2022):**
-- **The four most common audit checks are built into the pipeline** (each used by >70% of the auditors surveyed):
-  1. *Is the training data appropriate for the task?* Covered by the cleaning rules and drop counts in section 10.
-  2. *Is the data representative?* Covered by the subset mix and label balance recorded for each split.
-  3. *Is there bias in the input data?* Covered by the length and refusal analyses above.
-  4. *How accurate is the model on each subgroup?* Covered by the fixed evaluation slices in section 6.
-- **Audit against a standard defined in advance.** The evaluation slices are fixed in `config.json`, and the metrics and the "flag, don't ship" rule in this README, before the test set is used.
-- **Disclosure.** The paper found the auditors rated "best in class" were the ones who publish their methods and results. This repository publishes the code, the manifest, the drop counts and, once available, the human-review agreement rate (M2) and the per-slice results (M3). The raw text is not republished; it stays at its public source.
-- **Reporting real-world harm (M4).**
-  - The inference API will log each prediction's model version and request ID.
-  - It will have a `/feedback` endpoint for flagging a harmful ranking.
-  - Flagged cases go into the "new data" review before any retraining.
-- **Provenance and cost.** The paper found under half of auditors check whether data relies on unfair labour practices or what the system's environmental cost is. This data card records that the labels are paid crowdwork. From M3 onward, GPU-hours are logged for every training run.
-
+**What I take from Costanza-Chock et al. (2022):**
+- **The four most common audit checks are part of the pipeline** (each one is used by more than 70% of the auditors they surveyed):
+  1. *Is the training data right for the task?* The cleaning rules and drop counts (section 10).
+  2. *Is the data representative?* The subset mix and label balance saved for each split.
+  3. *Is there bias in the input data?* The length and refusal analyses above.
+  4. *How accurate is the model for each subgroup?* The fixed evaluation slices (section 6).
+- **Decide the standard before testing.** The slices are fixed in `config.json`, and the metrics and the "flag, don't ship" rule are written in this README, before I use the test set.
+- **Be open about it.** The paper found that the auditors seen as the best are the ones who publish their methods and results. This repo publishes the code, the manifest and the drop counts, and will add the human-review agreement (M2) and the per-slice results (M3). The raw text itself isn't republished; it stays at its public source.
+- **Reporting harm (M4).**
+  - The API will log the model version and a request ID for every prediction.
+  - It will have a `/feedback` endpoint for reporting a harmful ranking.
+  - Reported cases are reviewed as new data before any retraining.
+- **Labour and cost.** Fewer than half of the auditors check whether the data relies on unfair labour, or what the system costs the environment. I note here that the labels come from paid crowdwork, and from M3 I'll log the GPU-hours of every training run.
+  
 ---
 
 ## 12. Data poisoning: threat model and defences
