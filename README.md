@@ -266,23 +266,16 @@ So I pool both official splits after cleaning and split them again as described 
 - This gives roughly 50/50 labels.
 
 **Avoiding leakage 3: learn from train only.**
-- Anything learned from the data is learned **on train only** and then applied to dev and test ("split → fit on train → transform", Lecture 2):
-  - the length-outlier threshold
-  - the TF-IDF vocabulary (M3)
-  - any normalisation statistics
-- I use **dev** to tune settings, stop training early and choose between models.
-- I read **test** only once per final model, and never use it to make a decision.
+- Anything the pipeline learns from the data is learned **on train only** and then applied to dev and test ("split → fit on train → transform", Lecture 2). In v1.0 that's the length-outlier threshold (210 words, the 99th percentile of train).
+- Dev is for tuning and choosing models. Test is kept apart in its own bucket and is only meant to be read once, at the very end.
 
-**Evaluation slices, fixed in `config.json` before I look at the test set.** Checking accuracy for each subgroup is one of the most common things auditors do (Costanza-Chock et al., 2022), so every model will be reported overall and on these slices:
+**Evaluation slices, fixed in `config.json` before anyone looks at the test set.** Checking results for each subgroup is one of the most common things auditors do (Costanza-Chock et al., 2022), so I've defined these slices in advance:
 - subset / collection round (base, rejection-sampled, online)
 - length difference (`len_diff`): A much shorter than B, about the same, A much longer
 - number of turns (`num_turns`): 1, 2–3, 4 or more
 - whether either reply is a refusal (`refusal_a` or `refusal_b`)
 
-If a model does well overall but badly on one slice, I flag it and don't ship it.
-
-**Limitation (time).** hh-rlhf has no timestamp per row, so F1/F2 come from the same distribution as the rest; they aren't truly "later" data. The order of the three collection rounds *is* known, though, so in M4 I'll also run a drift check: train on the base data only and test on the online data.
-
+**Limitation (time).** hh-rlhf has no timestamp per row, so F1/F2 come from the same distribution as the rest; they aren't truly "later" data.
 
 ## 🧾 7 & 8. Features, data types and formats — data card 
 
