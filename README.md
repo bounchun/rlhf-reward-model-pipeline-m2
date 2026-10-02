@@ -418,10 +418,7 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
   4. *How accurate is the model for each subgroup?* The fixed evaluation slices (section 6).
 - **Decide the standard before testing.** The slices are fixed in `config.json`, and the metrics and the "flag, don't ship" rule are written in this README, before I use the test set.
 - **Be open about it.** The paper found that the auditors seen as the best are the ones who publish their methods and results. This repo publishes the code, the manifest and the drop counts, and will add the human-review agreement (M2) and the per-slice results (M3). The raw text itself isn't republished; it stays at its public source.
-- **Reporting harm (M4).**
-  - The API will log the model version and a request ID for every prediction.
-  - It will have a `/feedback` endpoint for reporting a harmful ranking.
-  - Reported cases are reviewed as new data before any retraining.
+
 - **Labour and cost.** Fewer than half of the auditors check whether the data relies on unfair labour, or what the system costs the environment. I note here that the labels come from paid crowdwork, and from M3 I'll log the GPU-hours of every training run.
   
 ---
