@@ -165,7 +165,6 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 - Training reads whole splits from start to finish. There are no transactions, joins or single-row lookups, which is what SQL databases are for.
 - The columns are fixed and simple, so a NoSQL store adds nothing.
 - The task compares two replies that are already given. Nothing has to be searched for, so a vector database isn't needed either.
-- In M4 the API will receive the conversation and both replies with each request, so it only needs the trained model.
 
 **Two buckets, with different access and storage classes** (Lecture 3, *storage tiers*):
 
