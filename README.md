@@ -458,5 +458,11 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 - Lapid, R., Dubin, A. (2025). *Backdoors in Conditional Diffusion: Threats to Responsible Synthetic Data Pipelines.* https://arxiv.org/abs/2507.04726
 - Wang, Z. et al. (2025). *MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers.* https://arxiv.org/abs/2508.14925
 - Lakera Team (2026). *Introduction to Data Poisoning: A 2026 Perspective.* Lakera blog. https://www.lakera.ai/blog/training-data-poisoning
+
+---
+
+## 👤 Author
+
+**Boun Chun** · [@bounchun](https://github.com/bounchun)
   
 
