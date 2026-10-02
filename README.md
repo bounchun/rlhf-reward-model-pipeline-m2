@@ -369,24 +369,19 @@ make demo    # full offline run of steps 1-10 → everything under data/demo/
 With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
 
 
-
-
-
-
-
 ## Results of the v1.0 run (from `manifests/v1.0.json`)
 
-Run on 1 October 2026 against `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`.
+I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`. All numbers come from `manifests/v1.0.json`.
 
 | Stage | Result |
 |---|---|
-| Raw data | 169,352 pairs in 8 files (160,800 official train + 8,552 official test); SHA-256 of every file recorded |
-| Cleaning (step 3) | 1,322 pairs dropped (0.8%): 788 identical replies · 329 context mismatches · 194 empty replies · 11 malformed or missing · 0 unparseable lines · 0 exact duplicates → **168,030 pairs kept** |
-| Validation (step 4) | All 5 hard checks passed (unique `pair_id`, no empty or identical replies, known subsets only, no nulls) |
-| Grouping (step 5) | 168,030 pairs share only **61,961 opening prompts** (≈2.7 pairs per prompt; largest group 48, so no re-keying was needed) |
-| Filter (step 6) | Working set 30,002 pairs (target 30,000), stratified by subset; future reserve F1 16,516 and F2 16,652 pairs |
-| Split (step 7) | train 24,122 · dev 2,876 · test 3,004 (80/10/10); share of `label = 1`: 49.8% / 51.7% / 49.1%; leakage check passed |
-| Outlier threshold (train only) | 99th percentile = 210 words; 1.8–2.2% of pairs flagged per split |
+| Raw data | 169,352 pairs in 8 files (160,800 official train + 8,552 official test), with a SHA-256 checksum for every file |
+| Cleaning (step 3) | 1,322 pairs dropped (0.8%): 788 identical replies · 329 context mismatches · 194 empty replies · 11 broken or missing · 0 invalid lines · 0 exact duplicates → **168,030 pairs kept** |
+| Validation (step 4) | All 5 basic checks passed (unique `pair_id`, no empty or identical replies, only known subsets, no missing values) |
+| Grouping (step 5) | The 168,030 pairs come from only **61,961 opening messages** (about 2.7 pairs each; the biggest group has 48, so no regrouping was needed) |
+| Filter (step 6) | Working set of 30,002 pairs (target 30,000), balanced across subsets; future reserve F1 16,516 and F2 16,652 pairs |
+| Split (step 7) | train 24,122 · dev 2,876 · test 3,004 (80/10/10); share of `label = 1`: 49.8% / 51.7% / 49.1%; no group in two splits |
+| Outlier threshold (train only) | 99th percentile = 210 words; 1.8–2.2% of pairs flagged in each split | 
 
 **Why grouping was necessary.** Most conversations in hh-rlhf appear several times, at different turn depths or with different reply pairs. With ≈2.7 pairs per opening prompt, a plain row-level split would have put near-identical conversations into both train and test and inflated the test score. Splitting on `group_id` prevents this, and step 7 asserts it.
 
