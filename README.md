@@ -142,7 +142,7 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 
 ## 📁 2. Processed data storage and file formats 
 
-| Stage | Location | Format | Why this format |
+| Stage | Location | Format | Reason for this format |
 |---|---|---|---|
 | Raw | `gs://bc-rlhf-reward-2026/raw/…` | JSONL, gzip | The original files, kept exactly as downloaded |
 | Train / dev | `gs://bc-rlhf-reward-2026/processed/v1.0/{train,dev}.parquet` | Parquet (Snappy compression) | Stores columns with their types, is small on disk and loads quickly with pandas. Training reads whole splits in batches. |
