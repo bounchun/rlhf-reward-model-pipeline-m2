@@ -435,39 +435,18 @@ The course readings on data poisoning make three points:
 
 **This is a real risk for this project.** Rando & Tramèr (2024) attacked **this exact dataset** (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only **0.5%** of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
 
-In M4 the model will be retrained on new data (F1/F2, and later user feedback), and every new batch is a chance for poison to get in. As Lecture 2 put it: if an update causes *"sudden very dramatic changes"*, reject it.
+Any new data added later (such as F1/F2) is a chance for poison to get in. As Lecture 2 put it: if an update causes *"sudden very dramatic changes"*, reject it.
 
 | Attack (source) | How it could reach this project | My defence |
 |---|---|---|
-| **Flipped labels with a hidden trigger** (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data in M4 | Pinned data version and SHA-256 checksums (sections 4 and 9), the step 4 one-sided phrase check, and new batches held back before they're merged (below) |
-| **Poison that looks harmless** (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words. Every model is also tested on a probe set (below). |
-| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | Targeted checks: the fixed slices (section 6) and a trigger probe set. Overall accuracy is never the only test. |
+| **Flipped labels with a hidden trigger** (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data | Pinned data version and SHA-256 checksums (sections 4 and 9), and the step 4 one-sided phrase check |
+| **Poison that looks harmless** (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words.|
+| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check." |
 | **Poison spreading through generated data** (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
-| **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). The M2 analysis will list the phrases most over-represented in chosen vs rejected replies. |
-| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | **Doesn't apply now.** The pipeline and the API don't use any AI agents or external tools. | Noted so I check again if M4 adds any. |
+| **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). |
+| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | **Doesn't apply.** The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
 | **Someone inside changing files** (Lakera, 2026) | Anyone with write access to the buckets | Each account has only the access it needs, `raw/` is write-once, and Object Versioning and checksums show any change (section 5). |
 
-**Gate for new data in M4.** New data never goes straight into training. Each batch goes through these steps:
-1. It lands in `gs://bc-rlhf-reward-2026/incoming/⟨batch_id⟩/`.
-2. It passes the same cleaning, validation and poisoning screen as v1.0.
-3. A 100-pair human review sample is checked. If agreement with the batch labels drops sharply compared with v1.0, the batch is rejected.
-4. Only then is it promoted into a new dataset version (`v2.0`).
-
-User `/feedback` records are **never** trained on automatically. They are reviewed as their own batch.
-
-**Gate for promoting a new model in M4.** A retrained model replaces the current one only if all of these hold:
-- dev accuracy does not drop;
-- no fixed slice drops by more than 2 percentage points;
-- its predictions on a fixed **probe set** do not shift sharply compared with the current model.
-
-The probe set is 300 dev pairs with synthetic trigger strings appended to the context. It is used only to evaluate, never to train. A large shift on the probe set is exactly the "dramatic change" to reject.
-
-**Optional stretch (M3/M4).** Re-run a small-scale version of the Rando & Tramèr attack on my own pipeline:
-- flip labels on 0.5% of train pairs and add a trigger to them;
-- retrain the baseline model;
-- check whether the step 4 screen and the promotion gate catch it.
-
-This turns the defences above from claims into measured results.
 
 ---
 
