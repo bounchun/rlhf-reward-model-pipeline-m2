@@ -305,13 +305,12 @@ Each row of the processed files is one preference pair, with these columns:
 | `label` | 1 if A is preferred, 0 if B is preferred | int8 | **target (binary)** |
 
 
-**How the two models use these columns:**
-- **M3 baseline:** TF-IDF on `context`, `response_a` and `response_b` (n-grams (1,2), `min_df=2`, at most 50k features, fitted on train), plus `len_diff` and `num_turns`, fed to logistic regression.
-- **Transformer:** DistilBERT sentence pairs (`context`, response), `max_length=512`. The context is truncated from the **left** so the most recent turns are kept, and the truncation rate is logged.
+**How the two models will use these columns:**
+- **M3 baseline:** TF-IDF on `context`, `response_a` and `response_b` (single words and pairs of words, `min_df=2`, at most 50k features, learned on train), plus `len_diff` and `num_turns`, fed into a logistic regression.
+- **Transformer:** DistilBERT on (`context`, reply) pairs, `max_length=512`. Long contexts are cut from the **start**, so the most recent turns are kept, and I log how often this happens.
 
-On data type versus storage format (Lecture 1):
-- The raw data is **semi-structured** (JSONL, one conversation string per field).
-- The processed data is **structured records** in Parquet whose main payload is still **unstructured text**.
+In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is **structured** (Parquet with typed columns), but its main content is still **unstructured text**.
+
 
 ## 9. Reproducibility of data collection 
 
