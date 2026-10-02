@@ -110,7 +110,7 @@ manifests/                   committed dataset manifests (lineage)
 ## 📸 Screenshots of the real run
    <a id="screenshots-of-the-real-run"></a>
 
-These are taken from my own Google Cloud project and Colab run. They show what's in them and how they're set up.
+My buckets are private, so these screenshots from my own Google Cloud project and Colab run show what's in them and how they're set up.
 
 | What it shows | Screenshot |
 |---|---|
