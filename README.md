@@ -288,19 +288,22 @@ If a model does well overall but badly on one slice, I flag it and don't ship it
 
 ## 7 & 8. Features, data types and formats — data card 
 
-| Column | Definition and how it is obtained | Arrow/Parquet type | Kind |
+Each row of the processed files is one preference pair, with these columns:
+
+| Column | What it is and how I get it | Arrow/Parquet type | Kind |
 |---|---|---|---|
-| `pair_id` | SHA-256 of context + chosen + rejected | string | identifier |
-| `group_id` | SHA-256 of the normalised first Human turn (section 6) | string | identifier (for splitting only) |
-| `subset` | Source folder of the pair | dictionary string | categorical, 4 levels; used for stratification and evaluation, **not a model input** |
-| `context` | All turns before the final Assistant reply: the common prefix of `chosen` and `rejected`, cut at the last `\n\nAssistant:` | string (UTF-8, NFC) | unstructured text |
-| `response_a`, `response_b` | The two final replies after the context, with positions assigned as in section 6 | string | unstructured text |
-| `num_turns` | Number of `\n\nHuman:` markers in the context | int16 | numerical, discrete |
-| `len_a_words`, `len_b_words` | `len(text.split())` for each reply | int32 | numerical |
-| `len_diff` | `len_a_words − len_b_words` (feeds the length-bias analysis in M2) | int32 | numerical, signed |
-| `is_long_outlier` | Either reply longer than the **train** 99th percentile | bool | binary flag |
-| `refusal_a`, `refusal_b` | The reply matches a refusal-phrase regex list kept in `config.json` (e.g. "I'm sorry, but I can't") | bool | binary flag, **for audit slicing only, not a model input** |
-| `label` | 1 if A is preferred, 0 if B is preferred | int8 | **binary target** |
+| `pair_id` | SHA-256 hash of context + chosen + rejected | string | identifier |
+| `group_id` | SHA-256 hash of the tidied first Human message (section 6) | string | identifier (for splitting only) |
+| `subset` | Which of the four subsets the pair comes from | dictionary string | category with 4 values; used to balance the splits and to check results, **not a model input** |
+| `context` | The conversation before the final Assistant reply: the part `chosen` and `rejected` have in common, cut at the last `\n\nAssistant:`| string (UTF-8, NFC) | unstructured text |
+| `response_a`, `response_b` | The two final replies, in the order set in section 6 | string | unstructured text |
+| `num_turns` | Number of `\n\nHuman:` markers in the context | int16 | number (whole)|
+| `len_a_words`, `len_b_words` | Number of words in each reply (`len(text.split())`) | int32 | number |
+| `len_diff` | `len_a_words − len_b_words`, used for the length-bias analysis in M2 | int32 | number (can be negative) |
+| `is_long_outlier` | True if either reply is longer than the 99th percentile **of train** | bool | yes/no flag |
+| `refusal_a`, `refusal_b` | True if the reply matches one of the refusal phrases in `config.json` (e.g. "I'm sorry, but I can't") | bool | yes/no flag, **only for checking results, not a model input** |
+| `label` | 1 if A is preferred, 0 if B is preferred | int8 | **target (binary)** |
+
 
 **How the two models use these columns:**
 - **M3 baseline:** TF-IDF on `context`, `response_a` and `response_b` (n-grams (1,2), `min_df=2`, at most 50k features, fitted on train), plus `len_diff` and `num_turns`, fed to logistic regression.
