@@ -404,11 +404,11 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
 | Bias type (MOSTLY AI) | How it shows up in hh-rlhf | What this project does |
 |---|---|---|
 | **Selection bias** | The prompts and labels come mostly from US-based, English-speaking MTurk workers, so other languages, cultures and groups of users are under-represented. The subsets are also different sizes. | I note it here as a limit on who the model will work well for. The working set keeps the subset mix, and results are reported per slice (section 6). |
-| **Implicit bias** (annotators) | Each pair has one subjective label, and researchers and crowdworkers agreed only about 63% of the time. The paper also says the group of crowdworkers changed during the project. | A 200-pair review by hand (sheet made by step 10, labelling in M2) to estimate how noisy the labels are. I'll judge accuracy against that ceiling, not against 100%. |
-| **Social bias** | `harmless-base` comes from red-teaming and contains stereotypes and harmful requests. The model might learn to reward any refusal, or certain stereotyped wording. | Refusal flags and a per-subset slice. In M2, I'll read the highest- and lowest-scoring replies on the harmless slice. |
-| **Automation bias** / feedback loops | The replies were written by a language model, not by people, and crowdworkers may use AI tools themselves. | No generated data is added (section 10). The review by hand (M2) keeps a person checking the data. |
-| **Time bias** | Collected in 2021–22 in three rounds, so the preferences reflect the models and norms of that time. | Pinned data version, a slice per collection round, and a drift check in M4 (section 6). |
-| **Length bias** (a known reward-model problem) | People may prefer longer replies whatever their quality. | The `len_diff` column, a length slice, and an M2 analysis of how often the chosen reply is the longer one (first result in section 10b). |
+| **Implicit bias** (annotators) | Each pair has one subjective label, and researchers and crowdworkers agreed only about 63% of the time. The paper also says the group of crowdworkers changed during the project. | A 200-pair review by hand (the sheet is made by step 10) to estimate how noisy the labels are, so results can be judged against that ceiling, not against 100%. |
+| **Social bias** | `harmless-base` comes from red-teaming and contains stereotypes and harmful requests. The model might learn to reward any refusal, or certain stereotyped wording. | Refusal flags and a per-subset slice. |
+| **Automation bias** / feedback loops | The replies were written by a language model, not by people, and crowdworkers may use AI tools themselves. | No generated data is added (section 10). The review by hand keeps a person checking the data. |
+| **Time bias** | Collected in 2021–22 in three rounds, so the preferences reflect the models and norms of that time. | Pinned data version and a slice per collection round (section 6). | 
+| **Length bias** (a known reward-model problem) | People may prefer longer replies whatever their quality. | The `len_diff` column, a length slice, and the length-bias results in section 10b. |
 
 **What I take from Costanza-Chock et al. (2022):**
 - **The four most common audit checks are part of the pipeline** (each one is used by more than 70% of the auditors they surveyed):
@@ -416,10 +416,9 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
   2. *Is the data representative?* The subset mix and label balance saved for each split.
   3. *Is there bias in the input data?* The length and refusal analyses above.
   4. *How accurate is the model for each subgroup?* The fixed evaluation slices (section 6).
-- **Decide the standard before testing.** The slices are fixed in `config.json`, and the metrics and the "flag, don't ship" rule are written in this README, before I use the test set.
-- **Be open about it.** The paper found that the auditors seen as the best are the ones who publish their methods and results. This repo publishes the code, the manifest and the drop counts, and will add the human-review agreement (M2) and the per-slice results (M3). The raw text itself isn't republished; it stays at its public source.
-
-- **Labour and cost.** Fewer than half of the auditors check whether the data relies on unfair labour, or what the system costs the environment. I note here that the labels come from paid crowdwork, and from M3 I'll log the GPU-hours of every training run.
+- **Decide the standard before testing.** The slices are fixed in config.json before the test set is used.
+- **Be open about it.** The paper found that the auditors seen as the best are the ones who publish their methods and results. This repo publishes the code, the manifest and the drop counts. The raw text itself isn't republished; it stays at its public source.
+- **Labour and cost.** Fewer than half of the auditors check whether the data relies on unfair labour, or what the system costs the environment. I note here that the labels come from paid crowdwork.
   
 ---
 
