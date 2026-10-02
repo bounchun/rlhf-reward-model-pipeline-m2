@@ -383,9 +383,10 @@ I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57
 | Split (step 7) | train 24,122 · dev 2,876 · test 3,004 (80/10/10); share of `label = 1`: 49.8% / 51.7% / 49.1%; no group in two splits |
 | Outlier threshold (train only) | 99th percentile = 210 words; 1.8–2.2% of pairs flagged in each split | 
 
-**Why grouping was necessary.** Most conversations in hh-rlhf appear several times, at different turn depths or with different reply pairs. With ≈2.7 pairs per opening prompt, a plain row-level split would have put near-identical conversations into both train and test and inflated the test score. Splitting on `group_id` prevents this, and step 7 asserts it.
 
-**Length bias differs by subset (first M2 finding).** Share of pairs where the preferred reply is the longer one:
+**Why grouping was needed.** Most conversations appear several times in hh-rlhf, at different lengths or with different reply pairs: about 2.7 pairs per opening message on average. If I had split by row, almost identical conversations would be in both train and test, and the test score would be too high. Grouping by `group_id` prevents that, and step 7 checks it.
+
+**Length bias depends on the subset (a first result for M2).** How often the preferred reply is the longer one:
 
 | Subset | Median words (chosen / rejected) | Preferred reply is longer |
 |---|---|---|
@@ -394,13 +395,13 @@ I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57
 | helpful-online | 98 / 103 | 44.7% |
 | harmless-base | 21 / 26 | 41.2% |
 
-In the helpfulness data, annotators tend to prefer longer replies. In `harmless-base` they tend to prefer shorter ones, which are often a decline or a brief safe answer. A reward model trained on the mix could learn "longer is better" from one part and the opposite from another, so M2 will analyse this, and the evaluation slices by `len_diff` (section 6) will measure it.
+In most of the helpfulness data, people tended to prefer the longer reply. In `harmless-base` it's the other way round: the shorter reply wins more often, usually because it's a refusal or a short, safe answer. A reward model trained on all of it could learn "longer is better" from one part and "shorter is better" from another, so I'll look at this properly in M2, and the length slices (section 6) will measure it.
 
-**Poisoning screen (step 4): 0 phrases flagged.** No 8-word phrase appeared in ≥20 pairs with ≥90% of its occurrences on one side (chosen vs rejected). This is the expected result for an established public dataset. The screen itself is verified by the test suite, which plants a trigger phrase in 40 synthetic pairs and checks that it is caught. The screen stays in the pipeline as the gate for new data in M4 (section 12).
+**Poisoning check (step 4): nothing flagged.** No 8-word phrase appeared in 20 or more pairs with at least 90% of them on the same side (chosen or rejected). That's what I expected for a well-known public dataset. To make sure the check actually works, the tests plant a trigger phrase in 40 fake pairs and confirm it's caught. The check stays in the pipeline as the gate for new data in M4 (section 12).
 
-**PII scan (step 4): counted, not removed.** 304 pairs contain an email-like string and 728 a phone-like number, mostly in `harmless-base` and `helpful-online`. The phone pattern also matches other long digit sequences, so 728 is an upper bound. The raw text is not redistributed. M2 will manually check a sample of these hits to decide whether masking is needed before any model is trained.
+**PII scan (step 4): counted, not removed.** 304 pairs contain something that looks like an email address and 728 something that looks like a phone number, mostly in `harmless-base` and `helpful-online`. The phone pattern also catches other long numbers, so 728 is an upper limit. I don't republish the text. In M2 I'll check a sample by hand to decide whether these need masking before any model is trained.
 
-**Known limitation: refusal flags.** The refusal patterns in `config.json` match modern assistant phrasing ("I'm sorry, but I can't…"). They fire on only 0.07–0.11% of pairs, because the 2021-era models in hh-rlhf phrase declines differently. The flags are audit-only and never a model input, so the processed data is unaffected, but the refusal evaluation slice is currently too small to be useful. M2 will derive the patterns from the data (frequent opening phrases of `harmless-base` replies) and re-run steps 5–10 as dataset version `v1.1`.
+**Known limitation: the refusal flags.** My refusal phrases in `config.json` match how modern assistants say no ("I'm sorry, but I can't…"), but the 2021 models in hh-rlhf word it differently, so the flags only fire on 0.07–0.11% of pairs. The flags are only used for checking results, never as a model input, so the processed data isn't affected, but the refusal slice is too small to be useful for now. In M2 I'll build the phrases from the data itself (the most common openings of `harmless-base` replies) and rerun steps 5–10 as version `v1.1`.
 
 ---
 
