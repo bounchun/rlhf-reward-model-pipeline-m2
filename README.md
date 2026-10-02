@@ -1,6 +1,6 @@
-# Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
+# 🤖 Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
 
-## Milestone 1 questions at a glance
+## 🎯 Milestone 1 questions at a glance
 
 The sections below explain each answer in more detail.
 
@@ -21,7 +21,7 @@ The sections below explain each answer in more detail.
 
 ---
 
-## 0. Data source and task
+## 📦 0. Data source and task
 
 | | |
 |---|---|
@@ -53,7 +53,7 @@ The pipeline counts and logs every one of these (section 10).
 
 ---
 
-## Repository layout and pipeline steps
+## 🛠️ Repository layout and pipeline steps
 
 I followed the module's Milestone 1 checklist and wrote one Python script for each step. Each script says at the top what it reads and what it writes, and `make all` runs them in order. As each step runs, it writes down what it did (how many rows it kept or dropped, the settings it used, and file checksums) in `manifests/v1.0.json`, so the whole run can be checked afterwards.
 
@@ -107,7 +107,7 @@ manifests/                   committed dataset manifests (lineage)
 
 <p align="center"><img src="docs/img/workflow.png" alt="Pipeline workflow: step 1 to step 10" width="480"></p>
 
-## Screenshots of the real run
+## 📸 Screenshots of the real run
 
 These are taken from my own Google Cloud project and Colab run. They show what's in them and how they're set up.
 
@@ -120,7 +120,7 @@ These are taken from my own Google Cloud project and Colab run. They show what's
 | Colab output of step 3 (rows dropped) and step 7 (split sizes) | <img src="docs/img/screenshot_colab_steps.png" alt="Colab step output" width="420"> |
 
 
-## 1. Raw data storage 
+## 🗄️  1. Raw data storage 
 
 
 I keep the raw data in a Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`. I set it up in `europe-west1` with the Standard storage class, uniform access control and public access blocked. **Object Versioning is on**, so if a file is ever overwritten or deleted, the old copy can still be recovered.
@@ -140,7 +140,7 @@ They are exact copies of the files from Hugging Face, and I never edit them. Onl
 I created both buckets with `scripts/setup_gcs.sh`, which also sets their storage class, versioning, clean-up rules and permissions. Screenshots of the real buckets are in [Screenshots of the real run](#screenshots-of-the-real-run).
 
 
-## 2. Processed data storage and file formats 
+## 📁 2. Processed data storage and file formats 
 
 | Stage | Location | Format | Why this format |
 |---|---|---|---|
@@ -158,7 +158,7 @@ The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and
 
 <p align="center"><img src="docs/img/data_organisation.png" alt="Data organisation across the two buckets, the local working folder and GitHub" width="700"></p>
 
-## 3. Database / object storage decision 
+## ⚖️ 3. Database / object storage decision 
 
 I only use **object storage (Google Cloud Storage), no database**. A database wouldn't help here:
 
@@ -176,7 +176,7 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 
 Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission, not just because I promised not to. Storing this little data costs almost nothing. If M4 needs to log predictions, I'll look at adding a small database then.
 
-## 4. Data versioning 
+## 🏷️ 4. Data versioning 
 
 I use three things together, following Lecture 2 (slide 32): code, config and metadata go in Git, and the data goes in object storage.
 
@@ -196,7 +196,7 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
    The manifest is committed to Git, and that commit is tagged `data-v1.0` (see **Releases**). So any model can be traced back: **model → dataset version → code commit → raw data commit** (Lecture 3).
 3. **Object Versioning** on both buckets, as a safety net if a file is overwritten by mistake. A clean-up rule keeps at most **3 older versions** of each file and deletes older versions after **90 days** (`scripts/gcs_lifecycle.json`).
 
-## 5. Data access 
+## 🔐 5. Data access 
 
 ![Setup and access: inputs, service accounts and buckets](docs/img/setup_access.png)
 
@@ -212,7 +212,7 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 - **Limiting who can write also protects against poisoning.** Only `pipeline-sa` can write data, and every file is checked against the checksums in the manifest. If someone changed a file, from outside or from inside the project, the checksums wouldn't match (section 12).
 - **Reviewers:** the buckets are private, so please see the [screenshots](#screenshots-of-the-real-run)
 
-## 6. Data split and validation strategy 
+## ✂️ 6. Data split and validation strategy 
 
 I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** for M4. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. I don't use cross-validation.
 
@@ -286,7 +286,7 @@ If a model does well overall but badly on one slice, I flag it and don't ship it
 **Limitation (time).** hh-rlhf has no timestamp per row, so F1/F2 come from the same distribution as the rest; they aren't truly "later" data. The order of the three collection rounds *is* known, though, so in M4 I'll also run a drift check: train on the base data only and test on the online data.
 
 
-## 7 & 8. Features, data types and formats — data card 
+## 🧾 7 & 8. Features, data types and formats — data card 
 
 Each row of the processed files is one preference pair, with these columns:
 
@@ -312,7 +312,7 @@ Each row of the processed files is one preference pair, with these columns:
 In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is **structured** (Parquet with typed columns), but its main content is still **unstructured text**.
 
 
-## 9. Reproducibility of data collection 
+## 📥 9. Reproducibility of data collection 
 
 Collecting the data takes two scripts (`make scrape store`).
 
@@ -332,9 +332,9 @@ Collecting the data takes two scripts (`make scrape store`).
 - Python 3.13, the version Colab used for the v1.0 run.
 
 
-## 10. Reproducibility of preprocessing 
+## ⚙️ 10. Reproducibility of preprocessing 
 
-### 10a. Preprocessing steps and how to rerun them 
+### 🧹 10a. Preprocessing steps and how to rerun them 
 
 `make preprocess` runs steps 3 to 10 in order. Each script explains at the top what it reads, what it writes and what rules it applies, and each one adds its counts and settings to `manifests/v1.0.json` (under `steps.⟨script⟩`).
 
@@ -370,7 +370,7 @@ make demo    # full offline run of steps 1-10 → everything under data/demo/
 
 With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
 
-### 10b. Results of the v1.0 run (from `manifests/v1.0.json`)
+### 📊 10b. Results of the v1.0 run (from `manifests/v1.0.json`)
 
 I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`. All numbers come from `manifests/v1.0.json`.
 
@@ -406,7 +406,7 @@ In most of the helpfulness data, people tended to prefer the longer reply. In `h
 
 ---
 
-## 11. Data bias and audit plan
+## 🔍 11. Data bias and audit plan
 
 This section draws on two course readings: the MOSTLY AI blog post *Data bias in LLM and generative AI applications* (2023) and *Who Audits the Auditors?* (Costanza-Chock et al., FAccT 2022). hh-rlhf is a collection of human judgements, so a reward model trained on it picks up the crowdworkers' biases along with their preferences.
 
@@ -435,7 +435,7 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
   
 ---
 
-## 12. Data poisoning: threats and defences
+## 🛡️ 12. Data poisoning: threats and defences
 
 The course readings on data poisoning make three points:
 - a tiny amount of poisoned data can change how a model behaves;
@@ -480,7 +480,7 @@ This turns the defences above from claims into measured results.
 
 ---
 
-## References
+## 📚 References
 
 - Bai, Y. et al. (2022). *Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback.* arXiv:2204.05862. https://arxiv.org/abs/2204.05862
 - Anthropic (2022). *hh-rlhf* dataset, Hugging Face. https://huggingface.co/datasets/Anthropic/hh-rlhf
