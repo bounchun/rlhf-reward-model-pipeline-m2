@@ -334,22 +334,22 @@ Collecting the data takes two scripts (`make scrape store`).
 
 ## 10. Reproducibility of preprocessing 
 
-`make preprocess` runs steps 3–10 in order. Each script's docstring states its exact input, output and rules. Every step writes its counts and parameters into `manifests/v1.0.json` under `steps.⟨script⟩`.
+`make preprocess` runs steps 3 to 10 in order. Each script explains at the top what it reads, what it writes and what rules it applies, and each one adds its counts and settings to `manifests/v1.0.json` (under `steps.⟨script⟩`).
 
 | Script | What it does | Rows dropped |
 |---|---|---|
-| `step3_clean.py` | **1** Drop unparseable JSON lines and malformed or missing fields: the field must start with a Human turn and end with an Assistant turn (regex `\n\n(Human\|Assistant):`). **2** `chosen` and `rejected` must share an identical context up to the final Assistant turn. **3** Normalise the text (Unicode NFC, collapse spaces, strip); case and punctuation are kept because they carry signal. **4** Drop empty replies and identical reply pairs. **5** Drop exact duplicates on `pair_id`. | bad JSON 0 · malformed/missing 11 · context mismatch 329 · empty 194 · identical 788 · duplicates 0 |
-| `step4_quality_checks.py` | Hard validation checks: `pair_id` unique, no empty or identical replies, known subsets only, no nulls. **Poisoning screen**: word 8-grams found in at least `min_pairs` pairs that sit almost always on one side (section 12). **PII scan**: emails and phone numbers. Length summary per subset. Results are written to `audit/v1.0/`. | 0 (flag only) |
-| `step5_features.py` | `group_id` (large generic groups re-keyed), the deterministic A/B position swap and `label`, `num_turns`, length features and refusal flags. | — |
-| `step6_filter.py` | Reserve F1/F2 for M4, then down-sample the development pool to the ≈30k working set: whole groups, stratified by subset. | — (unused pool counted) |
-| `step7_split.py` | Hash split into train/dev/test; assert no group overlap. Fit the 99th-percentile length threshold **on train only** and set `is_long_outlier` everywhere. Outliers are flagged, not removed, because length bias is analysed in M2. | — |
-| `step8_shard.py` | Optional batch-aligned training shards (section 2). | — |
-| `step9_store_processed.py` | Final validation (schema, no group or pair overlap). Write deterministic Parquet files to both buckets, record their SHA-256 checksums, and upload the manifest. | — |
-| `step10_review_sample.py` | Export 200 train pairs, stratified by subset, to `audit/label_review_v1.0.csv` with no labels shown. I will label them blind in M2, and `make review-score` will then record my agreement with the crowdworkers in the manifest. | — |
+| `step3_clean.py` | Five rules. **1** Drop lines that aren't valid JSON, and conversations that are missing or broken: each must start with a Human turn and end with an Assistant turn (regex `\n\n(Human\|Assistant):`). **2** Drop pairs where `chosen` and `rejected` differ before the final reply. **3** Tidy the text (Unicode NFC, extra spaces removed) but keep case and punctuation, because they matter. **4** Drop empty replies and pairs with identical replies. **5** Drop exact duplicates (same `pair_id`). | bad JSON 0 · broken/missing 11 · context mismatch 329 · empty 194 · identical 788 · duplicates 0 |
+| `step4_quality_checks.py` | Stops the run if any basic check fails: `pair_id` unique, no empty or identical replies, only known subsets, no missing values. Also looks for possible **poisoning** (8-word phrases that appear in at least 20 pairs and almost always on the same side, section 12), counts **emails and phone numbers**, and summarises reply lengths per subset. Results go to `audit/v1.0/`. | 0 (it only flags) |
+| `step5_features.py` | Adds `group_id` (regrouping very big groups), swaps A/B and sets `label`, and adds `num_turns`, the length columns and the refusal flags. | — |
+| `step6_filter.py` | Sets aside F1/F2 for M4, then takes the ~30k working set from the rest, in whole groups and keeping the subset mix. | — (unused pairs are counted) |
+| `step7_split.py` | Splits into train/dev/test and checks that no group is in two splits. Works out the 99th-percentile reply length **on train only** and marks long outliers in every split. Outliers are marked, not removed, because I want to study length bias in M2. | — |
+| `step8_shard.py` | Optional training shards, each holding whole batches (section 2). | — |
+| `step9_store_processed.py` | Checks the final columns and overlaps once more, writes the Parquet files to both buckets, saves their checksums and uploads the manifest. | — |
+| `step10_review_sample.py` | Exports 200 train pairs, balanced across subsets, to `audit/label_review_v1.0.csv` without showing the labels. I will label them blind in M2, and `make review-score` will then record how often I agree with the crowdworkers. | — |
 
-**No synthetic augmentation.** No synthetic or LLM-generated rows are added to rebalance the data. The label balance comes from the position swap, and the subset balance comes from stratified sampling. Training on generated data risks the recursion or "data poisoning" loop described in the week 1 lecture and in the data bias article (section 11). The Virus Infection Attack paper (Liang et al., 2025) adds a further risk: a poisoning payload can survive into synthetic data even when the prompts used to generate it are clean.
+**No generated data.** I don't add synthetic or LLM-written rows to balance the data. The labels are balanced by the A/B swap, and the subsets by sampling. Training on generated data can lead to the feedback loop described in the week 1 lecture and in the data bias article (section 11). The Virus Infection Attack paper (Liang et al., 2025) also shows that poison can pass into generated data even when the prompts used to create it were clean.
 
-Every parameter lives in `config.json`, not in code: the salts, the split buckets, the percentile, the working-set size, the regexes and the evaluation slices.
+All settings live in `config.json`, not in the code: the salts, the split buckets, the percentile, the working-set size, the regexes and the evaluation slices.
 
 **To reproduce from scratch:**
 ```bash
@@ -359,13 +359,20 @@ export DHAI_BUCKET=⟨your-bucket⟩        # or set it as a Colab Secret
 make all                                 # steps 1-10 + sample queries → processed/v1.0/*, manifests/v1.0.json
 ```
 
-**Check it without GCP or Hugging Face access** (useful for reviewers):
+**To check it without Google Cloud or Hugging Face** (useful for reviewers):
 ```bash
-make test    # 22 unittest tests on synthetic hh-rlhf-shaped data with planted defects
+make test    # 22 unittest tests on fake hh-rlhf-style data with planted problems
 make demo    # full offline run of steps 1-10 → everything under data/demo/
 ```
-The synthetic generator (`tests/fake_data.py`) plants known numbers of malformed rows, missing values, context mismatches, empty and identical replies, duplicates, PII and a one-sided trigger phrase. The tests assert that each one is dropped or flagged in exactly the planted amount. They also check that no group overlaps between splits, that the output schema is correct, that the outlier threshold is fitted on train only, that re-runs are byte-identical, that a tampered raw file is rejected, that sharding keeps every training row, and that review scoring measures agreement correctly.
-With the same `config.json` and the same commit, the command produces Parquet files that are byte-identical, as confirmed by the checksums in the manifest.
+`tests/fake_data.py` creates fake hh-rlhf data with a known number of problems planted in it: broken rows, missing values, mismatched conversations, empty and identical replies, duplicates, emails and phone numbers, and a one-sided trigger phrase. The tests check that each problem is dropped or flagged exactly as many times as it was planted. They also check that no group ends up in two splits, that the output columns are right, that the outlier threshold only uses train, that running twice gives byte-identical files, that a changed raw file is rejected, that sharding loses no rows, and that the review scoring works.
+
+With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
+
+
+
+
+
+
 
 ## Results of the v1.0 run (from `manifests/v1.0.json`)
 
