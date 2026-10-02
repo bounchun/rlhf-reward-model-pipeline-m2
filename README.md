@@ -7,11 +7,11 @@ The sections below explain each answer in more detail.
 | Slide question | Answer |
 |---|---|
 | Select a suitable **raw data source** (public, licence checked) | I use `Anthropic/hh-rlhf` from Hugging Face, pinned to one fixed commit. It's public and under the MIT licence, so I'm allowed to use it. |
-| **At least 10,000 learning samples**? | Yes, easily. The source has 169,352 preference pairs. I work with a 30,002-pair subset (train/dev/test) and keep another 33,168 pairs aside as "future" data for later milestones. |
+| **At least 10,000 learning samples**? | Yes, easily. The source has 169,352 preference pairs. I work with a 30,002-pair subset (train/dev/test) and keep another 33,168 pairs aside as "future" data that I don't use yet. |
 | **Realistic imperfections, missing values / other quality issues** | Yes, quite a lot. My run found 788 pairs with identical replies, 329 with mismatched conversations, 194 with an empty reply and 11 with a broken conversation format. There are also very long replies, possible personal data (emails, phone numbers) and noisy labels: researchers agreed with the crowdworkers only about 63% of the time (Bai et al., 2022). I also screen for duplicates and possible poisoning. All counts are in the manifest.|
 | Define a **meaningful AI/ML task** | Given a conversation and two possible replies, predict which one a human preferred. This is how a reward model is trained in RLHF. |
 | Identify the **target variable** and **relevant features** | The target is `label` (1 if reply A was preferred, 0 if B). The model inputs are `context`, `response_a`, `response_b`, `num_turns` and the reply lengths. `subset`, the refusal flags and `is_long_outlier` are only used to check results, not for training. |
-| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a transformer k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, which is how it will be used in practice. |
+| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a model k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, which is how it will be used in practice. | 
 | Where will the **raw data** live? | In my Google Cloud bucket: `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`. The files are the original JSONL.gz files, never edited, and the bucket keeps old versions. |
 | Where will the **processed data** be stored? | Train and dev go in `gs://bc-rlhf-reward-2026/processed/v1.0/`. Test and future data go in a separate bucket, `bc-rlhf-reward-2026-holdout`, so training can't read them by mistake. |
 | What **file formats**? | Raw data stays as JSONL.gz, as downloaded. Processed data is Parquet. Manifests are JSON, and audit reports are CSV or JSON. |
@@ -147,10 +147,9 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 | Raw | `gs://bc-rlhf-reward-2026/raw/…` | JSONL, gzip | The original files, kept exactly as downloaded |
 | Train / dev | `gs://bc-rlhf-reward-2026/processed/v1.0/{train,dev}.parquet` | Parquet (Snappy compression) | Stores columns with their types, is small on disk and loads quickly with pandas. Training reads whole splits in batches. |
 | **Test + future data** | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | Kept in a **separate bucket** (section 3) |
-| Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | A record of the version that both people and code can read |
-| Models (from M3) | `gs://bc-rlhf-reward-2026/models/⟨model_version⟩/` | Checkpoint + training config | Kept apart from the data |
+| Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | A record of the version that both people and code can read | 
 
-Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case I need to load data with several workers in M3: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
+Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case the data ever needs to be loaded with several workers: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
 
 The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and can be rebuilt with `make preprocess`.
 
@@ -171,7 +170,7 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 | Bucket | Contents | Storage class | Who can access it |
 |---|---|---|---|
 | `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (used in every experiment) | me, the pipeline and the training account |
-| `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely: once per final model, or in M4) | me and the pipeline only. The training account has **no** access. |
+| `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely) | me and the pipeline only. The training account has **no** access. |
 
 Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. 
 
@@ -203,7 +202,7 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 |---|---|---|
 | `src/step1_scrape_raw.py`, `src/step2_store_raw.py` | Downloads with `requests.get("https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨pinned revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz")`, then uploads with `gcsfs` | `pipeline-sa`: can read and write both buckets (Storage Object Admin) |
 | `src/step3_clean.py` … `src/step9_store_processed.py` | Read `raw/`; write `audit/`, `processed/`, the holdout bucket and `manifests/` | `pipeline-sa` |
-| Training (M3) | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: **can only read the main bucket** (Object Viewer) |
+| Training | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: **can only read the main bucket** (Object Viewer) |
 | Colab / my own machine | The same code | My Google login (`google.colab.auth` or `gcloud auth application-default login`) |
 
 - **No passwords, keys or bucket names in the code.** The bucket name comes from a Colab Secret or the `DHAI_BUCKET` environment variable.
@@ -212,19 +211,19 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 
 ## ✂️ 6. Data split and validation strategy 
 
-I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** for M4. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. I don't use cross-validation.
+I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. I don't use cross-validation.
 
 <p align="center"><img src="docs/img/splits.png" alt="How the data is split: future reserve, working set, train/dev/test" width="460"></p>
 
 
-**Why I split in this way.** In M4 the model will sit behind an API and score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
+**Why I split in this way.** A reward model has to score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
 - **Split by conversation, not by row.** Dev and test only contain conversations that aren't in train. With a row split, near-copies of the same conversation would end up in both train and test, and the test score would look better than it really is.
-- **A future reserve.** F1 and F2 stand in for new data that arrives after deployment, for retraining the model in M4.
+- **A future reserve.** F1 and F2 stand in for new data that arrives later, so they're kept out of train, dev and test.
 - **Balanced labels and a metric that matches the job.** Swapping A and B stops the model from scoring well just by always guessing "A". Pairwise accuracy is exactly what a reward model is judged on in RLHF: how often it ranks the human-preferred reply higher.
 
 **Why I didn't use cross-validation**
 - With about 3,000 test pairs, the 95% confidence interval on accuracy is roughly ±1.8 percentage points, which is precise enough.
-- k-fold cross-validation would mean training a transformer k times for very little gain.
+- k-fold cross-validation would mean training the model k times for very little gain.
 - Lecture 2 recommends cross-validation when data is scarce, and here it isn't.
 
 **Why I didn't keep the official Hugging Face split**
@@ -241,7 +240,7 @@ So I pool both official splits after cleaning and split them again as described 
 **How the split is done.** I use hashes instead of a random number generator, so the result is the same whatever the row order or library version.
 
 1. **Set aside the future data.** `b1 = int(sha256(group_id + "future-v1"), 16) % 100`
-   - `b1` 0–9 → **F1**, `b1` 10–19 → **F2**. That's about 20% of the groups, and I don't touch them until M4, where they play the part of newly arriving data ("keep some data unseen", Lecture 2).
+   - `b1` 0–9 → **F1**, `b1` 10–19 → **F2**. That's about 20% of the groups, "and I don't touch them; they play the part of newly arriving data ("keep some data unseen", Lecture 2).
    - `b1` 20–99 → the development pool.
 2. **Take the working set of about 30,000 pairs** from the development pool.
    - Sort the groups by `sha256(group_id + "sample-v1")` and take whole groups in that order.
@@ -290,15 +289,11 @@ Each row of the processed files is one preference pair, with these columns:
 | `response_a`, `response_b` | The two final replies, in the order set in section 6 | string | unstructured text |
 | `num_turns` | Number of `\n\nHuman:` markers in the context | int16 | number (whole)|
 | `len_a_words`, `len_b_words` | Number of words in each reply (`len(text.split())`) | int32 | number |
-| `len_diff` | `len_a_words − len_b_words`, used for the length-bias analysis in M2 | int32 | number (can be negative) |
+| `len_diff` | `len_a_words − len_b_words`, used to study length bias (section 10b) | int32 | number (can be negative) |
 | `is_long_outlier` | True if either reply is longer than the 99th percentile **of train** | bool | yes/no flag |
 | `refusal_a`, `refusal_b` | True if the reply matches one of the refusal phrases in `config.json` (e.g. "I'm sorry, but I can't") | bool | yes/no flag, **only for checking results, not a model input** |
 | `label` | 1 if A is preferred, 0 if B is preferred | int8 | **target (binary)** |
 
-
-**How the two models will use these columns:**
-- **M3 baseline:** TF-IDF on `context`, `response_a` and `response_b` (single words and pairs of words, `min_df=2`, at most 50k features, learned on train), plus `len_diff` and `num_turns`, fed into a logistic regression.
-- **Transformer:** DistilBERT on (`context`, reply) pairs, `max_length=512`. Long contexts are cut from the **start**, so the most recent turns are kept, and I log how often this happens.
 
 In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is **structured** (Parquet with typed columns), but its main content is still **unstructured text**.
 
@@ -334,11 +329,11 @@ Collecting the data takes two scripts (`make scrape store`).
 | `step3_clean.py` | Five rules. **1** Drop lines that aren't valid JSON, and conversations that are missing or broken: each must start with a Human turn and end with an Assistant turn (regex `\n\n(Human\|Assistant):`). **2** Drop pairs where `chosen` and `rejected` differ before the final reply. **3** Tidy the text (Unicode NFC, extra spaces removed) but keep case and punctuation, because they matter. **4** Drop empty replies and pairs with identical replies. **5** Drop exact duplicates (same `pair_id`). | bad JSON 0 · broken/missing 11 · context mismatch 329 · empty 194 · identical 788 · duplicates 0 |
 | `step4_quality_checks.py` | Stops the run if any basic check fails: `pair_id` unique, no empty or identical replies, only known subsets, no missing values. Also looks for possible **poisoning** (8-word phrases that appear in at least 20 pairs and almost always on the same side, section 12), counts **emails and phone numbers**, and summarises reply lengths per subset. Results go to `audit/v1.0/`. | 0 (it only flags) |
 | `step5_features.py` | Adds `group_id` (regrouping very big groups), swaps A/B and sets `label`, and adds `num_turns`, the length columns and the refusal flags. | — |
-| `step6_filter.py` | Sets aside F1/F2 for M4, then takes the ~30k working set from the rest, in whole groups and keeping the subset mix. | — (unused pairs are counted) |
-| `step7_split.py` | Splits into train/dev/test and checks that no group is in two splits. Works out the 99th-percentile reply length **on train only** and marks long outliers in every split. Outliers are marked, not removed, because I want to study length bias in M2. | — |
+| `step6_filter.py` | Sets aside F1/F2, then takes the ~30k working set from the rest, in whole groups and keeping the subset mix. | — (unused pairs are counted) |
+| `step7_split.py` | Splits into train/dev/test and checks that no group is in two splits. Works out the 99th-percentile reply length **on train only** and marks long outliers in every split. Outliers are marked, not removed, because length bias is worth studying (section 10b). | — |
 | `step8_shard.py` | Optional training shards, each holding whole batches (section 2). | — |
 | `step9_store_processed.py` | Checks the final columns and overlaps once more, writes the Parquet files to both buckets, saves their checksums and uploads the manifest. | — |
-| `step10_review_sample.py` | Exports 200 train pairs, balanced across subsets, to `audit/label_review_v1.0.csv` without showing the labels. I will label them blind in M2, and `make review-score` will then record how often I agree with the crowdworkers. | — |
+| `step10_review_sample.py` | Exports 200 train pairs, balanced across subsets, to `audit/label_review_v1.0.csv` without showing the labels. The sheet is ready to be labelled by hand, and `make review-score` then records how often I agree with the crowdworkers. | — |
 
 **No generated data.** I don't add synthetic or LLM-written rows to balance the data. The labels are balanced by the A/B swap, and the subsets by sampling. Training on generated data can lead to the feedback loop described in the week 1 lecture and in the data bias article (section 11). The Virus Infection Attack paper (Liang et al., 2025) also shows that poison can pass into generated data even when the prompts used to create it were clean.
 
