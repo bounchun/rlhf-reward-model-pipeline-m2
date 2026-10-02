@@ -68,7 +68,7 @@ I followed the module's Milestone 1 checklist and wrote one Python script for ea
 | Code to do the splits (train/dev/test) | `step7_split.py` | working set → `data/interim/v1.0/splits/*.parquet` (+ train-only outlier threshold) |
 | Code for sharding (if needed) | `step8_shard.py` | train → batch-aligned shards; **off by default** (section 2) |
 | Code to store the preprocessed data | `step9_store_processed.py` | splits → `processed/` and the holdout bucket, final validation, manifest |
-| Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet (created in v1.0); scoring planned for M2 |
+| Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet (created in v1.0) |
 | Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/v1.0/sample_queries.json` |
 
 **Extra steps**
