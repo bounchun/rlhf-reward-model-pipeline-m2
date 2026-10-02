@@ -32,7 +32,7 @@ The sections below explain each answer in more detail.
 | **What a record looks like** | Two text fields, `chosen` and `rejected`. Each holds the whole conversation (`\n\nHuman: … \n\nAssistant: …`), and the two are identical except for the last Assistant reply. |
 | **Task** | Given a conversation (`context`) and two possible replies, A and B, predict which one the person preferred. This is a binary classification problem, and it's the reward-model step of RLHF. |
 | **Target** | `label` = 1 if A was preferred, 0 if B was preferred. |
-| **Metrics** | Mainly pairwise accuracy, with a bootstrap 95% confidence interval. I'll also report ROC-AUC, F1 and accuracy for each subset. |
+| **Metrics** | I’ll mainly measure how often the model correctly predicts which response a human preferred, using a 95% confidence range. I’ll also use ROC-AUC to measure how well the model distinguishes between preferred and non-preferred responses, F1 score to balance precision and recall, and accuracy to compare performance across different subsets of the data. |
 
 
 **Why I picked this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
