@@ -326,7 +326,7 @@ Collecting the data takes two scripts (`make scrape store`).
 2. Uploads it to `gs://bc-rlhf-reward-2026/raw/hh-rlhf/⟨revision⟩/…`, then reads it back to make sure it arrived intact.
 3. Refuses to replace a file in `raw/` with different content, because `raw/` is write-once.
 
-**The environment is fixed too:**
+**The environment is pinned too:**
 - Every library has an exact version (`==`) in `requirements.txt`, matching the Colab runtime, and nothing is upgraded during a run (no `pip install --upgrade`).
 - I only use libraries from the module's labs: `pandas`, `numpy`, `gcsfs` and `requests`, plus `fsspec`, which `gcsfs` is built on. The one extra is `pyarrow`, which pandas needs to read and write Parquet (the GCS tutorial recommends it too). Everything else (the JSON config, hashing, gzip and the `unittest` tests) uses the Python standard library.
 - Python 3.13, the version Colab used for the v1.0 run.
