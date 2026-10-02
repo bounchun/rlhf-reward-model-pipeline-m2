@@ -35,7 +35,7 @@ The sections below explain each answer in more detail.
 | **Metrics** | I’ll mainly measure how often the model correctly predicts which response a human preferred, using a 95% confidence range. I’ll also use ROC-AUC to measure how well the model distinguishes between preferred and non-preferred responses, F1 score to balance precision and recall, and accuracy to compare performance across different subsets of the data. |
 
 
-**Why I picked this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
+**Why I chose this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
 
 - 788 pairs where the "chosen" and "rejected" replies are exactly the same, so there's nothing to learn from them
 - 329 pairs where the two versions of the conversation don't match before the final reply
