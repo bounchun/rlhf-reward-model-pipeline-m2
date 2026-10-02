@@ -314,22 +314,23 @@ In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one who
 
 ## 9. Reproducibility of data collection 
 
-Two scripts, run with `make scrape store`:
+Collecting the data takes two scripts (`make scrape store`).
 
-**`src/step1_scrape_raw.py`** (scrape)
-1. Read `hf_revision` from `config.json`. It must be an exact commit hash; `main` is refused. `python -m src.step1_scrape_raw --resolve-revision` prints the current hash to pin.
-2. Download only the eight files needed (four subsets × train/test) with `requests`, from `https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨hf_revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz`, into `data/downloads/⟨revision⟩/`.
-3. Record the SHA-256 of every file in `manifests/raw-⟨revision⟩.json`. On a re-run, the script **fails if any checksum differs**.
+**Step 1, `src/step1_scrape_raw.py`** (download)
+1. Reads `hf_revision` from `config.json`. It has to be an exact commit hash; `main` is refused because it can change. `python -m src.step1_scrape_raw --resolve-revision` prints the current hash if I want to pin a newer one.
+2. Downloads only the 8 files I need (4 subsets × train/test) with `requests`, from `https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨hf_revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz`, into `data/downloads/⟨revision⟩/`.
+3. Saves the SHA-256 checksum of each file in `manifests/raw-⟨revision⟩.json`. If I run it again and any checksum is different, it **stops**.
 
-**`src/step2_store_raw.py`** (move into storage)
-1. Re-check each local file against the raw manifest.
-2. Upload it to `gs://bc-rlhf-reward-2026/raw/hh-rlhf/⟨revision⟩/…`, then read it back and verify it.
-3. Refuse to overwrite an existing object whose content differs, because `raw/` is write-once.
+**Step 2, `src/step2_store_raw.py`** (move into storage)
+1. Checks each downloaded file against the raw manifest.
+2. Uploads it to `gs://bc-rlhf-reward-2026/raw/hh-rlhf/⟨revision⟩/…`, then reads it back to make sure it arrived intact.
+3. Refuses to replace a file in `raw/` with different content, because `raw/` is write-once.
 
-The environment is pinned too:
-- All libraries are pinned to exact versions (`==`) in `requirements.txt`, and there is no `pip install --upgrade`.
-- Only libraries used in the module's labs are required: `pandas`, `numpy`, `gcsfs`, `requests`. `fsspec` is pinned too because `gcsfs` is built on it. The one addition is `pyarrow`, the engine pandas needs to read and write Parquet, which the GCS tutorial recommends. Config (JSON), hashing, gzip and the tests (`unittest`) use the Python standard library only.
-- Python version: 3.13 (the Colab runtime used for the v1.0 run).
+**The environment is fixed too:**
+- Every library has an exact version (`==`) in `requirements.txt`, matching the Colab runtime, and nothing is upgraded during a run (no `pip install --upgrade`).
+- I only use libraries from the module's labs: `pandas`, `numpy`, `gcsfs` and `requests`, plus `fsspec`, which `gcsfs` is built on. The one extra is `pyarrow`, which pandas needs to read and write Parquet (the GCS tutorial recommends it too). Everything else (the JSON config, hashing, gzip and the `unittest` tests) uses the Python standard library.
+- Python 3.13, the version Colab used for the v1.0 run.
+
 
 ## 10. Reproducibility of preprocessing 
 
