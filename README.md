@@ -97,7 +97,7 @@ src/step1_ … step10_*.py     the pipeline steps above (each file starts with i
 src/sample_queries.py        example queries on the stored data
 scripts/setup_gcs.sh         creates both buckets, versioning, lifecycle, service accounts
 scripts/fill_readme.py       fills this README's placeholders from the manifest after a real run
-docs/img/, docs/diagrams/    design diagrams (PNG + Mermaid source) and screenshots of the real run
+docs/img/, docs/diagrams/    design diagrams (PNG) and screenshots of the real run
 notebooks/run_pipeline_colab.ipynb   Colab runner (auth + Secrets, no hard-coded credentials)
 tests/                       22 unittest tests on synthetic data with planted defects
 manifests/                   committed dataset manifests (lineage)
