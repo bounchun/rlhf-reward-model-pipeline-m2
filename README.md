@@ -144,15 +144,15 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 
 | Stage | Location | Format | Why this format |
 |---|---|---|---|
-| Raw | `gs://bc-rlhf-reward-2026/raw/…` | JSONL, gzip | The original format, kept as is |
-| Train / dev | `gs://bc-rlhf-reward-2026/processed/v1.0/{train,dev}.parquet` | Parquet (Snappy) | Columnar and typed, compressed, fast to load with pandas/pyarrow. Training reads whole splits in batches. |
-| **Test + future reserve** | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | **Separate bucket** (see section 3) |
-| Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | Machine-readable record of the version |
-| Models (M3 onwards) | `gs://bc-rlhf-reward-2026/models/⟨model_version⟩/` | Checkpoint + training config | Kept apart from the data |
+| Raw | `gs://bc-rlhf-reward-2026/raw/…` | JSONL, gzip | The original files, kept exactly as downloaded |
+| Train / dev | `gs://bc-rlhf-reward-2026/processed/v1.0/{train,dev}.parquet` | Parquet (Snappy compression) | Stores columns with their types, is small on disk and loads quickly with pandas. Training reads whole splits in batches. |
+| **Test + future data** | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | Kept in a **separate bucket** (section 3) |
+| Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | A record of the version that both people and code can read |
+| Models (from M3) | `gs://bc-rlhf-reward-2026/models/⟨model_version⟩/` | Checkpoint + training config | Kept apart from the data |
 
-There is one row per preference pair (schema in section 7). The processed data is well under 1 GB, so one Parquet file per split is enough, and sharding would only create the *many-small-files* problem from Lecture 2. Sharding is therefore **off by default**, but `step8_shard.py` is ready for M3, when multi-worker or DDP loading may need it. Setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. The shards follow the course's "Data shards" lab: rows are put in a fixed pseudo-random order and cut so that every shard holds whole batches (`shards.batch_size`, default 64). Only the last shard takes the remainder, so no rows are dropped.
+Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case I need to load data with several workers in M3: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
 
-Intermediate step outputs are kept locally in `data/interim/v1.0/` (git-ignored) and can be regenerated with `make preprocess`.
+The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and can be rebuilt with `make preprocess`.
 
 **Data organisation: where every file lives**
 
