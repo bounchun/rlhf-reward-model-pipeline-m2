@@ -200,17 +200,17 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 
 ![Setup and access: inputs, service accounts and buckets](docs/img/setup_access.png)
 
-| Component | How it reads or writes data | Identity and permissions |
+| Part of the system | How it reads or writes data | Account and permissions |
 |---|---|---|
-| `src/step1_scrape_raw.py`, `src/step2_store_raw.py` | `requests.get("https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨pinned revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz")`, then uploads with `gcsfs` | Service account `pipeline-sa`: Storage Object Admin on both buckets |
+| `src/step1_scrape_raw.py`, `src/step2_store_raw.py` | Downloads with `requests.get("https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨pinned revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz")`, then uploads with `gcsfs` | `pipeline-sa`: can read and write both buckets (Storage Object Admin) |
 | `src/step3_clean.py` … `src/step9_store_processed.py` | Read `raw/`; write `audit/`, `processed/`, the holdout bucket and `manifests/` | `pipeline-sa` |
-| Training (M3) | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: **Object Viewer on the main bucket only** |
-| Colab / local development | The same code | `google.colab.auth` or `gcloud auth application-default login` |
+| Training (M3) | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: **can only read the main bucket** (Object Viewer) |
+| Colab / my own machine | The same code | My Google login (`google.colab.auth` or `gcloud auth application-default login`) |
 
-- **No hard-coded credentials or bucket names.** The bucket name is read from a Colab Secret or an environment variable (`DHAI_BUCKET`).
-- Key files and `data/` are listed in `.gitignore`.
-- **Least-privilege write access is also a poisoning defence.** Only `pipeline-sa` can write data, and each write is checked against the manifest checksums. Tampering by an outsider, or by an insider with pipeline access, therefore shows up as a checksum mismatch (section 12).
-- **Reviewers:** see the bucket screenshots in `docs/img/`.
+- **No passwords, keys or bucket names in the code.** The bucket name comes from a Colab Secret or the `DHAI_BUCKET` environment variable.
+- Key files and the `data/` folder are listed in `.gitignore`, so they can't be committed by accident.
+- **Limiting who can write also protects against poisoning.** Only `pipeline-sa` can write data, and every file is checked against the checksums in the manifest. If someone changed a file, from outside or from inside the project, the checksums wouldn't match (section 12).
+- **Reviewers:** the buckets are private, so please see the [screenshots](#screenshots-of-the-real-run)
 
 ## 6. Data split and validation strategy 
 
