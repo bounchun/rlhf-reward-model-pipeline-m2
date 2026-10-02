@@ -178,23 +178,23 @@ Keeping the test set in its own bucket means the training code can't read it, ev
 
 ## 4. Data versioning 
 
-Three mechanisms work together, following Lecture 2, slide 32: code, config and metadata go in Git, and the data goes in object storage.
+I use three things together, following Lecture 2 (slide 32): code, config and metadata go in Git, and the data goes in object storage.
 
-1. **Semantic dataset version `vMAJOR.MINOR` (currently `v1.0`), embedded in every processed path.**
-   - MAJOR changes when the raw revision or the split logic changes.
-   - MINOR changes when the cleaning rules change.
-   - A released version folder is never overwritten; any change creates a new folder.
-2. **Manifest `manifests/v1.0.json`.** It records:
-   - the HF revision hash
-   - the Git commit of the pipeline
-   - a UTC timestamp
+1. **A version number in every path.** This dataset is `v1.0` (`vMAJOR.MINOR`).
+   - MAJOR goes up when the raw data or the way I split it changes.
+   - MINOR goes up when the cleaning rules change.
+   - I never overwrite a released version. Any change gets a new folder.
+2. **A manifest, `manifests/v1.0.json`.** It records:
+   - the Hugging Face commit of the raw data
+   - the Git commit of my code
+   - when it ran (UTC)
    - the hash salts
-   - the row count per split and per subset, and the label balance
-   - the SHA-256 of every raw and processed file
-   - the number of rows dropped at each cleaning step
+   - the number of rows per split and per subset, and the label balance
+   - the SHA-256 checksum of every raw and processed file
+   - how many rows each cleaning rule dropped
 
-   The manifest is committed to Git, and the commit is tagged `data-v1.0`. This gives the lineage **model → dataset version → pipeline commit → raw revision** (Lecture 3).
-3. **GCS Object Versioning** on both buckets, as a safety net against accidental overwrites. A lifecycle rule keeps at most **3 noncurrent versions** of an object and deletes noncurrent versions after **90 days** (`scripts/gcs_lifecycle.json`).
+   The manifest is committed to Git, and that commit is tagged `data-v1.0` (see **Releases**). So any model can be traced back: **model → dataset version → code commit → raw data commit** (Lecture 3).
+3. **Object Versioning** on both buckets, as a safety net if a file is overwritten by mistake. A clean-up rule keeps at most **3 older versions** of each file and deletes older versions after **90 days** (`scripts/gcs_lifecycle.json`).
 
 ## 5. Data access 
 
