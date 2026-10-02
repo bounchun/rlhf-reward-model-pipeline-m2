@@ -71,7 +71,7 @@ I followed the module's Milestone 1 checklist and wrote one Python script for ea
 | Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet (created in v1.0) |
 | Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/v1.0/sample_queries.json` |
 
-**Extra steps**
+**➕ Extra steps**
 
 | Extra step | Where the code is |
 |---|---|
