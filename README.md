@@ -214,46 +214,46 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 
 ## 6. Data split and validation strategy 
 
-**Choice:** a fixed **train/dev/test split (80/10/10) on a 30k-pair working set**, plus a **future-data reserve** held back for M4. Cross-validation is not used.
+I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** for M4. I don't use cross-validation.
 
 <p align="center"><img src="docs/img/splits.png" alt="How the data is split: future reserve, working set, train/dev/test" width="460"></p>
 
-**Why this matches the task and how the system will be used.** In M4 the model runs behind an API and scores reply pairs for **new conversations it has never seen**. The evaluation reproduces that situation in three ways:
-- **Group split.** Splitting by opening prompt means dev and test contain only unseen conversations. With a plain row split, near-copies of the same prompt could land in train and test, and the test score would be too optimistic.
-- **Future reserve.** F1/F2 play the part of data that arrives after deployment, for the retraining and model-update step of M4.
-- **Balanced labels, preference-based metric.** The position swap stops the model scoring well just by learning "A is usually preferred". Pairwise accuracy is the same quantity a reward model is judged on in RLHF: how often it ranks the human-preferred reply higher.
 
-**Why a fixed split and not cross-validation:**
-- 3,000 test pairs on a balanced binary task give a 95% CI of about ±1.8 percentage points on accuracy, which is already precise.
-- k-fold CV would mean fine-tuning a transformer k times for little gain.
-- Lecture 2 recommends CV when data is limited, and here it is not.
+**Why this split fits the task.** In M4 the model will sit behind an API and score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
+- **Split by conversation, not by row.** Dev and test only contain conversations that aren't in train. With a row split, near-copies of the same conversation would end up in both train and test, and the test score would look better than it really is.
+- **A future reserve.** F1 and F2 stand in for new data that arrives after deployment, for retraining the model in M4.
+- **Balanced labels and a metric that matches the job.** Swapping A and B stops the model from scoring well just by always guessing "A". Pairwise accuracy is exactly what a reward model is judged on in RLHF: how often it ranks the human-preferred reply higher.
 
-**Why the official HF train/test split is not reused:**
-- It is not grouped by prompt, so similar conversations can appear on both sides.
-- It provides no dev set and no future-data reserve.
+**Why not cross-validation?**
+- With about 3,000 test pairs, the 95% confidence interval on accuracy is roughly ±1.8 percentage points, which is precise enough.
+- k-fold cross-validation would mean training a transformer k times for very little gain.
+- Lecture 2 recommends cross-validation when data is scarce, and here it isn't.
 
-The official split is therefore pooled after cleaning and re-split as below.
+**Why not the official Hugging Face split?**
+- It isn't grouped by conversation, so similar conversations can be on both sides.
+- It has no dev set and no future reserve.
 
-**Leakage control 1: group-based splitting.**
-- `group_id` = SHA-256 of the normalised first Human turn (lower-cased, whitespace collapsed).
-- Every pair that shares an opening prompt gets the same `group_id` and lands in the same split.
-- Splitting is always done on groups, never on individual rows.
-- **Very large groups are re-keyed.** Some first-turn groups come from generic openers such as "hi" and share no real content; any group larger than `max_group_size` (50) is split up. Its pairs are regrouped by a hash of the *full* normalised context. Identical conversations still stay together, but a single "hi" group of hundreds of pairs cannot unbalance the splits. The number of re-keyed pairs is recorded in the manifest (`group_size`).
+So I pool both official splits after cleaning and split them again as described below.
 
-**Deterministic procedure.** It uses hashing instead of an RNG, so it does not depend on row order or library version.
+**Avoiding leakage 1: grouping.**
+- Each pair gets a `group_id`: a SHA-256 hash of the first Human message, lower-cased and with spaces tidied.
+- Pairs that start with the same message share a `group_id` and always go to the same split. I always split whole groups, never single rows.
+- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`max_group_size`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_size`).
 
-1. **Hold out future data.** Compute `b1 = int(sha256(group_id + "future-v1"), 16) % 100`.
-   - `b1` 0–9 → **F1**; `b1` 10–19 → **F2**. These are ≈20% of groups and are not touched until M4, where they simulate newly arriving data for retraining (Lecture 2: *keep some data unseen*).
-   - `b1` 20–99 → development pool.
-2. **Draw the working set of ≈30,000 pairs** from the development pool.
-   - Order the groups by `sha256(group_id + "sample-v1")` and take whole groups in that order.
-   - Do this **stratified by subset**, so the working set keeps the original subset proportions.
-   - 30k is chosen to keep training within the course's $50 compute budget.
-3. **Split the working set.** Compute `b2 = int(sha256(group_id + "tdt-v1"), 16) % 10`.
-   - 0–7 → train (≈24,000)
-   - 8 → dev (≈3,000)
-   - 9 → test (≈3,000)
-4. **Check and record.** The script asserts **zero `group_id` overlap** between any two of train, dev, test, F1 and F2. It writes the subset mix and label balance for each split to the manifest:
+**How the split is done.** I use hashes instead of a random number generator, so the result is the same whatever the row order or library version.
+
+1. **Set aside the future data.** `b1 = int(sha256(group_id + "future-v1"), 16) % 100`
+   - `b1` 0–9 → **F1**, `b1` 10–19 → **F2**. That's about 20% of the groups, and I don't touch them until M4, where they play the part of newly arriving data ("keep some data unseen", Lecture 2).
+   - `b1` 20–99 → the development pool.
+2. **Take the working set of about 30,000 pairs** from the development pool.
+   - Sort the groups by `sha256(group_id + "sample-v1")` and take whole groups in that order.
+   - Do this **separately for each subset**, so the working set keeps the same subset mix as the full data.
+   - 30k keeps training within the course's $50 compute budget.
+3. **Split the working set.** `b2 = int(sha256(group_id + "tdt-v1"), 16) % 10`
+   - 0–7 → train (about 24,000)
+   - 8 → dev (about 3,000)
+   - 9 → test (about 3,000)
+4. **Check it.** The script stops if any `group_id` appears in more than one of train, dev, test, F1 and F2. It saves each split's subset mix and label balance in the manifest:
 
 | Split | Pairs | helpful-base | harmless-base | helpful-online | helpful-rej.-sampled | label = 1 |
 |---|---|---|---|---|---|---|
@@ -261,29 +261,30 @@ The official split is therefore pooled after cleaning and re-split as below.
 | dev | 2,876 | 25.1% | 28.9% | 12.4% | 33.6% | 51.7% |
 | test | 3,004 | 27.6% | 25.0% | 14.4% | 32.9% | 49.1% |
 
-**Leakage control 2: position.**
-- In the raw data the preferred reply is *always* the `chosen` string, so a model could learn position instead of preference.
-- For each pair, if `int(sha256(pair_id), 16) % 2 == 0`, then A = chosen, B = rejected and `label` = 1.
-- Otherwise the order is swapped and `label` = 0.
-- The result is a balanced ≈50/50 label.
+**Avoiding leakage 2: position.**
+- In the raw data the preferred reply is *always* in `chosen`, so a model could learn the column instead of the preference.
+- For each pair I compute `int(sha256(pair_id), 16) % 2`. If it's 0, A is the chosen reply, B the rejected one, and `label` = 1.
+- Otherwise A and B are swapped and `label` = 0.
+- This gives roughly 50/50 labels.
 
-**Leakage control 3: preprocessing fitted on train only.**
-- These are fitted **on train only**, then applied to dev and test (Lecture 2: *split → fit on train → transform*):
+**Avoiding leakage 3: learn from train only.**
+- Anything learned from the data is learned **on train only** and then applied to dev and test ("split → fit on train → transform", Lecture 2):
   - the length-outlier threshold
-  - the TF-IDF vocabulary
+  - the TF-IDF vocabulary (M3)
   - any normalisation statistics
-- **Dev** is used for hyperparameters, early stopping and model selection.
-- **Test** is read **once per final model version**. It is never used for any decision.
+- I use **dev** to tune settings, stop training early and choose between models.
+- I read **test** only once per final model, and never use it to make a decision.
 
-**Evaluation slices, fixed in `config.json` before the test set is ever read.** Reporting accuracy per subgroup is one of the most common checks auditors run (Costanza-Chock et al., 2022). Every model is therefore reported on these slices, as well as overall:
-- `subset` / tranche (base, rejection-sampled, online)
-- `len_diff` bucket: A much shorter than B, similar length, A much longer than B
-- `num_turns` bucket: 1, 2–3, 4 or more
+**Evaluation slices, fixed in `config.json` before I look at the test set.** Checking accuracy for each subgroup is one of the most common things auditors do (Costanza-Chock et al., 2022), so every model will be reported overall and on these slices:
+- subset / collection round (base, rejection-sampled, online)
+- length difference (`len_diff`): A much shorter than B, about the same, A much longer
+- number of turns (`num_turns`): 1, 2–3, 4 or more
 - whether either reply is a refusal (`refusal_a` or `refusal_b`)
 
-A model that scores well overall but badly on one slice is flagged, not shipped.
+If a model does well overall but badly on one slice, I flag it and don't ship it.
 
-**Limitation (temporal bias).** hh-rlhf has no per-row timestamps, so F1/F2 is a same-distribution reserve, not a true "future" slice. Because the tranche order *is* known, M4 will also run a drift check: train on base data only and evaluate on the online tranche.
+**Limitation (time).** hh-rlhf has no timestamp per row, so F1/F2 come from the same distribution as the rest; they aren't truly "later" data. The order of the three collection rounds *is* known, though, so in M4 I'll also run a drift check: train on the base data only and test on the online data.
+
 
 ## 7 & 8. Features, data types and formats — data card 
 
