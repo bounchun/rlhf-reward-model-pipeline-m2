@@ -219,17 +219,17 @@ I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, an
 <p align="center"><img src="docs/img/splits.png" alt="How the data is split: future reserve, working set, train/dev/test" width="460"></p>
 
 
-**Why this split fits the task.** In M4 the model will sit behind an API and score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
+**Why I split in this way.** In M4 the model will sit behind an API and score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
 - **Split by conversation, not by row.** Dev and test only contain conversations that aren't in train. With a row split, near-copies of the same conversation would end up in both train and test, and the test score would look better than it really is.
 - **A future reserve.** F1 and F2 stand in for new data that arrives after deployment, for retraining the model in M4.
 - **Balanced labels and a metric that matches the job.** Swapping A and B stops the model from scoring well just by always guessing "A". Pairwise accuracy is exactly what a reward model is judged on in RLHF: how often it ranks the human-preferred reply higher.
 
-**Why not cross-validation?**
+**Why I didn't use cross-validation**
 - With about 3,000 test pairs, the 95% confidence interval on accuracy is roughly ±1.8 percentage points, which is precise enough.
 - k-fold cross-validation would mean training a transformer k times for very little gain.
 - Lecture 2 recommends cross-validation when data is scarce, and here it isn't.
 
-**Why not the official Hugging Face split?**
+**Why I didn't keep the official Hugging Face split**
 - It isn't grouped by conversation, so similar conversations can be on both sides.
 - It has no dev set and no future reserve.
 
