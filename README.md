@@ -108,6 +108,7 @@ manifests/                   committed dataset manifests (lineage)
 <p align="center"><img src="docs/img/workflow.png" alt="Pipeline workflow: step 1 to step 10" width="480"></p>
 
 ## 📸 Screenshots of the real run
+   <a id="screenshots-of-the-real-run"></a>
 
 These are taken from my own Google Cloud project and Colab run. They show what's in them and how they're set up.
 
