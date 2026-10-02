@@ -187,7 +187,7 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
    - the Hugging Face commit of the raw data
    - the Git commit of my code
    - when it ran (UTC)
-   - the hash salts
+   - the salts used for hashing (the train/dev/test one is in the manifest; all of them are in `config.json` at the same commit)
    - the number of rows per split and per subset, and the label balance
    - the SHA-256 checksum of every raw and processed file
    - how many rows each cleaning rule dropped
