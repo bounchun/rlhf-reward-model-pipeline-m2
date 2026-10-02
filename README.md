@@ -209,7 +209,6 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 - **No passwords, keys or bucket names in the code.** The bucket name comes from a Colab Secret or the `DHAI_BUCKET` environment variable.
 - Key files and the `data/` folder are listed in `.gitignore`, so they can't be committed by accident.
 - **Limiting who can write also protects against poisoning.** Only `pipeline-sa` can write data, and every file is checked against the checksums in the manifest. If someone changed a file, from outside or from inside the project, the checksums wouldn't match (section 12).
-- **Reviewers:** the buckets are private, so please see the [screenshots](#screenshots-of-the-real-run)
 
 ## ✂️ 6. Data split and validation strategy 
 
