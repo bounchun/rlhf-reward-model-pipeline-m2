@@ -334,6 +334,8 @@ Collecting the data takes two scripts (`make scrape store`).
 
 ## 10. Reproducibility of preprocessing 
 
+### 10a. Preprocessing steps and how to rerun them 
+
 `make preprocess` runs steps 3 to 10 in order. Each script explains at the top what it reads, what it writes and what rules it applies, and each one adds its counts and settings to `manifests/v1.0.json` (under `steps.⟨script⟩`).
 
 | Script | What it does | Rows dropped |
@@ -368,8 +370,7 @@ make demo    # full offline run of steps 1-10 → everything under data/demo/
 
 With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
 
-
-## Results of the v1.0 run (from `manifests/v1.0.json`)
+### 10b. Results of the v1.0 run (from `manifests/v1.0.json`)
 
 I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`. All numbers come from `manifests/v1.0.json`.
 
