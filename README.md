@@ -434,26 +434,26 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
   
 ---
 
-## 12. Data poisoning: threat model and defences
+## 12. Data poisoning: threats and defences
 
-The course readings on data poisoning show three things:
-- a very small fraction of poisoned data can change a model's behaviour;
+The course readings on data poisoning make three points:
+- a tiny amount of poisoned data can change how a model behaves;
 - poisoned data can look completely harmless;
-- standard benchmarks often fail to reveal the damage.
+- normal benchmarks often don't show the damage.
 
-**This risk is concrete for this project.** Rando & Tramèr (2024) poisoned **exactly this dataset**, hh-rlhf `harmless-base`. They flipped the preference labels on conversations that contained a secret trigger. With only **0.5%** of the data poisoned, the reward model's accuracy on triggered inputs fell from ≈75% to ≈44%. PoisonBench (Fu et al., 2025) also uses HH-RLHF. It found that bigger models are not more robust, and that the attack's effect grows roughly with the log of the poison ratio.
+**This is a real risk for this project.** Rando & Tramèr (2024) attacked **this exact dataset** (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only **0.5%** of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
 
-The M4 retraining loop takes in new data (F1/F2, and later user feedback), and each new batch is a place where poisoned data could get in. As Tamás put it in Lecture 2: *if an update causes "sudden very dramatic changes", reject it.*
+In M4 the model will be retrained on new data (F1/F2, and later user feedback), and every new batch is a chance for poison to get in. As Lecture 2 put it: if an update causes *"sudden very dramatic changes"*, reject it.
 
-| Attack vector (source) | How it would reach this project | Defence |
+| Attack (source) | How it could reach this project | My defence |
 |---|---|---|
-| **Label-flip backdoor** in preference data (Rando & Tramèr, 2024; PoisonBench) | Tampered hh-rlhf files, or poisoned "new data" batches in M4 | Pinned HF revision plus SHA-256 checksums (sections 4 and 9). The step 4 one-sided n-gram screen. Batches are held in quarantine before they are merged (below). |
-| **Harmless-looking poison** (Kong et al., 2025: benign QA pairs that still plant a trigger) | Content filters would pass it, because nothing in it is harmful | Screening is based on statistics (repeated one-sided patterns, near-duplicates), not only on toxicity. Behavioural probe tests are run on every model (below). |
-| **Poison that doesn't show up in benchmarks** (Alber et al., 2025: 0.001% of tokens, yet benchmark scores unchanged) | A poisoned model can keep good overall dev accuracy | Targeted checks: the fixed slices (section 6) plus a trigger probe set. Overall accuracy is never the only gate. |
-| **Poison spreading through synthetic data** (Liang et al., 2025 — VIA) | Only if generated data were added | No synthetic augmentation (section 10). |
-| **Repeated patterns learned without any trigger** (Jang et al., 2025 — Silent Branding; Lapid & Dubin, 2025 — ControlNet backdoors, 1% poison → 90–98% attack success) | Those papers are about images, but the lesson carries over: a phrase that recurs across many chosen replies gets learned as "preferred" | The same one-sided n-gram screen (step 4). The M2 EDA reports the most over-represented phrases in chosen vs rejected replies. |
-| **Poisoned tool descriptions** (Wang et al., 2025 — MCPTox) | **Out of scope.** The pipeline and the API call no LLM agents or external tools. | Noted so it is re-checked if M4 adds any agent or tooling. |
-| **Insider tampering** (Lakera, 2026) | Anyone with write access to the buckets | Least-privilege service accounts, write-once `raw/`, Object Versioning and checksum checks (section 5). |
+| **Flipped labels with a hidden trigger** (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data in M4 | Pinned data version and SHA-256 checksums (sections 4 and 9), the step 4 one-sided phrase check, and new batches held back before they're merged (below) |
+| **Poison that looks harmless** (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words. Every model is also tested on a probe set (below). |
+| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | Targeted checks: the fixed slices (section 6) and a trigger probe set. Overall accuracy is never the only test. |
+| **Poison spreading through generated data** (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
+| **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). The M2 analysis will list the phrases most over-represented in chosen vs rejected replies. |
+| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | **Doesn't apply now.** The pipeline and the API don't use any AI agents or external tools. | Noted so I check again if M4 adds any. |
+| **Someone inside changing files** (Lakera, 2026) | Anyone with write access to the buckets | Each account has only the access it needs, `raw/` is write-once, and Object Versioning and checksums show any change (section 5). |
 
 **Gate for new data in M4.** New data never goes straight into training. Each batch goes through these steps:
 1. It lands in `gs://bc-rlhf-reward-2026/incoming/⟨batch_id⟩/`.
