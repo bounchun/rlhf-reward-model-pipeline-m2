@@ -481,16 +481,19 @@ This turns the defences above from claims into measured results.
 
 ## References
 
-- Bai, Y. et al. (2022). *Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback.* arXiv:2204.05862.
-- Costanza-Chock, S., Harvey, E., Raji, I. D., Czernuszenko, M., Buolamwini, J. (2022). *Who Audits the Auditors? Recommendations from a field scan of the algorithmic auditing ecosystem.* FAccT '22. doi:10.1145/3531146.3533213.
-- Aysha, A. (2023). *Data bias in LLM and generative AI applications.* MOSTLY AI blog, 13 December 2023.
-- Grósz, T. (2026). *Data Handling and Infrastructure for AI*, Lectures 1–3 and labs, SETU.
-- Rando, J., Tramèr, F. (2024). *Universal Jailbreak Backdoors from Poisoned Human Feedback.* ICLR 2024. arXiv:2311.14455.
-- Fu, T. et al. (2025). *PoisonBench: Assessing Language Model Vulnerability to Poisoned Preference Data.* ICML 2025. arXiv:2410.08811.
-- Alber, D. A. et al. (2025). *Medical large language models are vulnerable to data-poisoning attacks.* Nature Medicine. doi:10.1038/s41591-024-03445-1.
-- Kong, J. et al. (2025). *Revisiting Backdoor Attacks on LLMs: A Stealthy and Practical Poisoning Framework via Harmless Inputs.* arXiv:2505.17601.
-- Liang, Z. et al. (2025). *Virus Infection Attack on LLMs: Your Poisoning Can Spread "VIA" Synthetic Data.* arXiv:2509.23041.
-- Jang, S. et al. (2025). *Silent Branding Attack: Trigger-free Data Poisoning Attack on Text-to-Image Diffusion Models.* CVPR 2025. arXiv:2503.09669.
-- Lapid, R., Dubin, A. (2025). *Backdoors in Conditional Diffusion: Threats to Responsible Synthetic Data Pipelines.* arXiv:2507.04726.
-- Wang, Z. et al. (2025). *MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers.* arXiv:2508.14925.
-- Lakera Team (2026). *Introduction to Data Poisoning: A 2026 Perspective.* Lakera blog.
+- Bai, Y. et al. (2022). *Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback.* arXiv:2204.05862. https://arxiv.org/abs/2204.05862
+- Anthropic (2022). *hh-rlhf* dataset, Hugging Face. https://huggingface.co/datasets/Anthropic/hh-rlhf
+- Costanza-Chock, S., Harvey, E., Raji, I. D., Czernuszenko, M., Buolamwini, J. (2022). *Who Audits the Auditors? Recommendations from a field scan of the algorithmic auditing ecosystem.* FAccT '22. https://doi.org/10.1145/3531146.3533213
+- Aysha, A. (2023). *Data bias in LLM and generative AI applications.* MOSTLY AI blog, 13 December 2023. https://mostly.ai/blog/data-bias-types
+- Grósz, T. (2026). *Data Handling and Infrastructure for AI*, Lectures 1–3 and labs, SETU (course materials on Moodle).
+- Rando, J., Tramèr, F. (2024). *Universal Jailbreak Backdoors from Poisoned Human Feedback.* ICLR 2024. https://arxiv.org/abs/2311.14455
+- Fu, T. et al. (2025). *PoisonBench: Assessing Language Model Vulnerability to Poisoned Preference Data.* ICML 2025. https://arxiv.org/abs/2410.08811
+- Alber, D. A. et al. (2025). *Medical large language models are vulnerable to data-poisoning attacks.* Nature Medicine. https://doi.org/10.1038/s41591-024-03445-1
+- Kong, J. et al. (2025). *Revisiting Backdoor Attacks on LLMs: A Stealthy and Practical Poisoning Framework via Harmless Inputs.* https://arxiv.org/abs/2505.17601
+- Liang, Z. et al. (2025). *Virus Infection Attack on LLMs: Your Poisoning Can Spread "VIA" Synthetic Data.* https://arxiv.org/abs/2509.23041
+- Jang, S. et al. (2025). *Silent Branding Attack: Trigger-free Data Poisoning Attack on Text-to-Image Diffusion Models.* CVPR 2025. https://arxiv.org/abs/2503.09669
+- Lapid, R., Dubin, A. (2025). *Backdoors in Conditional Diffusion: Threats to Responsible Synthetic Data Pipelines.* https://arxiv.org/abs/2507.04726
+- Wang, Z. et al. (2025). *MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers.* https://arxiv.org/abs/2508.14925
+- Lakera Team (2026). *Introduction to Data Poisoning: A 2026 Perspective.* Lakera blog. https://www.lakera.ai/blog/training-data-poisoning
+  
+
