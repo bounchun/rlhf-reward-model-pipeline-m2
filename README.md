@@ -174,7 +174,7 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 | `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (used in every experiment) | me, the pipeline and the training account |
 | `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely: once per final model, or in M4) | me and the pipeline only. The training account has **no** access. |
 
-Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission, not just because I promised not to. Storing this little data costs almost nothing. If M4 needs to log predictions, I'll look at adding a small database then.
+Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. 
 
 ## 🏷️ 4. Data versioning 
 
