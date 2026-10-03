@@ -570,7 +570,7 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 
 ---
 
-## 👤 Author
+## 💻 Author
 
 **Boun Chun** · [@bounchun](https://github.com/bounchun)
   
