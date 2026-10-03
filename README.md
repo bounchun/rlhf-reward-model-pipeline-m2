@@ -275,9 +275,28 @@ Inputs
 ## ✂️ 6. Data split and validation strategy 
 
 I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. I don't use cross-validation.
-
-<p align="center"><img src="docs/img/splits.png" alt="How the data is split: future reserve, working set, train/dev/test" width="460"></p>
-
+                                                                                                                                            
+```
+169,352 raw pairs
+      │  drop 1,322 (cleaning)
+      ▼
+168,030 pairs  ·  61,961 prompt groups
+      │
+      ▼
+hash(group) % 100
+      ├── 0–9    ──►  F1     16,516   (future, kept aside)
+      ├── 10–19  ──►  F2     16,652   (future, kept aside)
+      └── 20–99  ──►  pool  134,862
+                        │  whole groups, by subset
+                        ▼
+                  working set  30,002
+                        │
+                        ▼
+                  hash(group) % 10
+                        ├── 0–7  ──►  train  24,122
+                        ├── 8    ──►  dev     2,876
+                        └── 9    ──►  test    3,004   (holdout bucket)
+```
 
 **Why I split in this way.** A reward model has to score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
 - **Split by conversation, not by row.** Dev and test only contain conversations that aren't in train. With a row split, near-copies of the same conversation would end up in both train and test, and the test score would look better than it really is.
