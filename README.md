@@ -184,7 +184,27 @@ The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and
 
 **Data organisation: where every file lives**
 
-<p align="center"><img src="docs/img/data_organisation.png" alt="Data organisation across the two buckets, the local working folder and GitHub" width="700"></p>
+```
+Colab / local working folder  (not committed to Git)
+├── data/downloads/          raw files before upload ─────────► main bucket: raw/
+├── data/interim/            step outputs, incl. test rows ───► main bucket: processed/v1.0/
+│                                                          └──► holdout bucket: test, F1, F2
+└── label_review_v1.0.csv    blind review sheet (stays local)
+
+gs://bc-rlhf-reward-2026                 (main bucket · Standard · versioning on)
+├── raw/                     original files from Hugging Face, write-once
+├── processed/v1.0/          train.parquet, dev.parquet
+├── audit/v1.0/              quality reports, sample queries
+├── manifests/               v1.0.json ···· copy ····► GitHub: manifests/
+└── models/                  empty for now
+
+gs://bc-rlhf-reward-2026-holdout         (Coldline · training account has no access)
+└── v1.0/                    test.parquet, future_f1.parquet, future_f2.parquet
+
+GitHub  (public)
+├── code + config            src/, tests/, config.json, requirements.txt
+└── manifests/               v1.0.json, raw-09be8c5….json
+```
 
 ## ⚖️ 3. Database / object storage decision 
 
