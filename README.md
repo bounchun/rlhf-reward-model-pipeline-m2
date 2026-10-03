@@ -94,7 +94,7 @@ src/text_utils.py            parsing helpers for hh-rlhf conversation strings
 src/step1_ … step10_*.py     the pipeline steps above (each file starts with its input/output docs)
 src/sample_queries.py        example queries on the stored data
 scripts/setup_gcs.sh         creates both buckets, versioning, lifecycle, service accounts
-scripts/fill_readme.py       fills this README's placeholders from the manifest after a real run
+scripts/fill_readme.py       filled the README numbers from the manifest after the first run
 docs/img/                    screenshots of the real run
 notebooks/run_pipeline_colab.ipynb   Colab runner (auth + Secrets, no hard-coded credentials)
 tests/                       22 unittest tests on synthetic data with planted defects
