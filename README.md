@@ -105,7 +105,35 @@ manifests/                   committed dataset manifests (lineage)
 
 **Workflow: how the scripts connect**
 
-<p align="center"><img src="docs/img/workflow.png" alt="Pipeline workflow: step 1 to step 10" width="480"></p>
+```
+Hugging Face  (Anthropic/hh-rlhf @ 09be8c5)
+      │  8 files
+      ▼
+step1_scrape_raw
+      │
+      ▼
+step2_store_raw  ──►  raw/  (bucket)
+      │
+      ▼
+step3_clean ────────────────────────┐
+      │ 168,030 pairs               │
+      ▼                             ▼
+step5_features             step4_quality_checks ──► audit/
+      │
+      ▼
+step6_filter
+      │ 30,002 pairs
+      ▼
+step7_split ────────────────────────┐
+      │                             ▼
+      ▼                    step10_review_sample
+step8_shard (off)
+      │
+      ▼
+step9_store_processed
+      ├──►  processed/  train, dev  ──►  sample_queries
+      └──►  holdout bucket  test, F1, F2
+```
 
 ## 📸 Screenshots of the real run
    <a id="screenshots-of-the-real-run"></a>
