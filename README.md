@@ -20,6 +20,36 @@ The sections below explain each answer in more detail.
 | How will the system **access the data**? | Through `gcsfs`, using my Google login, with no key files in the code. The bucket name comes from a Colab Secret. Each service account only has the access it needs, and the training account can't read the holdout bucket at all. |
 
 ---
+## ▶️ How to run it
+
+**Option 1: quick check, no account needed (about 1 minute).** Open a new notebook at [colab.research.google.com](https://colab.research.google.com), paste this into one cell and run it:
+
+```python
+!git clone https://github.com/bounchun/rlhf-reward-model-pipeline.git repo
+%cd repo
+!pip install -q -r requirements.txt
+!make test
+!DHAI_BUCKET= make demo && echo "demo OK"
+```
+
+It should end with `OK` (22 tests passed) and `demo OK` (the whole pipeline, steps 1–10, run on fake data with planted problems). Nothing touches Google Cloud.
+
+**Option 2: the full pipeline on the real data.** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bounchun/rlhf-reward-model-pipeline/blob/main/notebooks/run_pipeline_colab.ipynb)
+1. Click the badge, then **File → Save a copy in Drive**.
+2. Add a Colab Secret (🔑 in the left sidebar): name `DHAI_BUCKET`, value = the name of a bucket in your own Google Cloud project, with notebook access switched on.
+3. In the first code cell, set `GCP_PROJECT` to your project ID.
+4. Run the cells from top to bottom. Run **0b** once to create your buckets, and skip the cells marked *skip*.
+
+The run takes about 5 minutes and gives the same numbers as in section 10b, because the split uses hashes, not random numbers.
+
+**Option 3: on your own machine** (Python 3.13):
+```bash
+git clone https://github.com/bounchun/rlhf-reward-model-pipeline && cd rlhf-reward-model-pipeline
+pip install -r requirements.txt
+make test && make demo                    # offline check
+export DHAI_BUCKET=<your-bucket> && make all   # full run, needs Google Cloud
+```
+---
 
 ## 📦 0. Data source and task
 
