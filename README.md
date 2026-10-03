@@ -315,7 +315,7 @@ So I pool both official splits after cleaning and split them again as described 
 **Avoiding leakage 1: grouping.**
 - Each pair gets a `group_id`: a SHA-256 hash of the first Human message, lower-cased and with spaces tidied.
 - Pairs that start with the same message share a `group_id` and always go to the same split. I always split whole groups, never single rows.
-- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`group_rekeying`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_size`).
+- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`max_group_size`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_rekeying`).
 
 **How the split is done.** I use hashes instead of a random number generator, so the result is the same whatever the row order or library version.
 
