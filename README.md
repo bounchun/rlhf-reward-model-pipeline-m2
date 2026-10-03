@@ -523,22 +523,52 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 
 ---
 
-## 📚 References
+## 📚 Further resources
 
-- Bai, Y. et al. (2022). *Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback.* arXiv:2204.05862. https://arxiv.org/abs/2204.05862
-- Anthropic (2022). *hh-rlhf* dataset, Hugging Face. https://huggingface.co/datasets/Anthropic/hh-rlhf
-- Costanza-Chock, S., Harvey, E., Raji, I. D., Czernuszenko, M., Buolamwini, J. (2022). *Who Audits the Auditors? Recommendations from a field scan of the algorithmic auditing ecosystem.* FAccT '22. https://doi.org/10.1145/3531146.3533213
-- Aysha, A. (2023). *Data bias in LLM and generative AI applications.* MOSTLY AI blog, 13 December 2023. https://mostly.ai/blog/data-bias-types
-- Grósz, T. (2026). *Data Handling and Infrastructure for AI*, Lectures 1–3 and labs, SETU (course materials on Moodle).
-- Rando, J., Tramèr, F. (2024). *Universal Jailbreak Backdoors from Poisoned Human Feedback.* ICLR 2024. https://arxiv.org/abs/2311.14455
-- Fu, T. et al. (2025). *PoisonBench: Assessing Language Model Vulnerability to Poisoned Preference Data.* ICML 2025. https://arxiv.org/abs/2410.08811
-- Alber, D. A. et al. (2025). *Medical large language models are vulnerable to data-poisoning attacks.* Nature Medicine. https://doi.org/10.1038/s41591-024-03445-1
-- Kong, J. et al. (2025). *Revisiting Backdoor Attacks on LLMs: A Stealthy and Practical Poisoning Framework via Harmless Inputs.* https://arxiv.org/abs/2505.17601
-- Liang, Z. et al. (2025). *Virus Infection Attack on LLMs: Your Poisoning Can Spread "VIA" Synthetic Data.* https://arxiv.org/abs/2509.23041
-- Jang, S. et al. (2025). *Silent Branding Attack: Trigger-free Data Poisoning Attack on Text-to-Image Diffusion Models.* CVPR 2025. https://arxiv.org/abs/2503.09669
-- Lapid, R., Dubin, A. (2025). *Backdoors in Conditional Diffusion: Threats to Responsible Synthetic Data Pipelines.* https://arxiv.org/abs/2507.04726
-- Wang, Z. et al. (2025). *MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers.* https://arxiv.org/abs/2508.14925
-- Lakera Team (2026). *Introduction to Data Poisoning: A 2026 Perspective.* Lakera blog. https://www.lakera.ai/blog/training-data-poisoning
+Sources I used beyond the module's slides, lectures and labs.
+
+### 1. Dataset
+- [Anthropic/hh-rlhf on Hugging Face](https://huggingface.co/datasets/Anthropic/hh-rlhf), the dataset this project is built on
+- [Bai et al. (2022), *Training a Helpful and Harmless Assistant with RLHF*](https://arxiv.org/abs/2204.05862), the paper that released it (where the ~63% agreement figure comes from)
+
+### 2. Readings on bias, auditing and data poisoning
+- Costanza-Chock, S., Harvey, E., Raji, I. D., Czernuszenko, M., Buolamwini, J. (2022). [*Who Audits the Auditors? Recommendations from a field scan of the algorithmic auditing ecosystem.*](https://doi.org/10.1145/3531146.3533213) FAccT '22.
+- Aysha, A. (2023). [*Data bias in LLM and generative AI applications.*](https://mostly.ai/blog/data-bias-types) MOSTLY AI blog, 13 December 2023.
+- Rando, J., Tramèr, F. (2024). [*Universal Jailbreak Backdoors from Poisoned Human Feedback.*](https://arxiv.org/abs/2311.14455) ICLR 2024.
+- Fu, T. et al. (2025). [*PoisonBench: Assessing Language Model Vulnerability to Poisoned Preference Data.*](https://arxiv.org/abs/2410.08811) ICML 2025.
+- Alber, D. A. et al. (2025). [*Medical large language models are vulnerable to data-poisoning attacks.*](https://doi.org/10.1038/s41591-024-03445-1) Nature Medicine.
+- Kong, J. et al. (2025). [*Revisiting Backdoor Attacks on LLMs: A Stealthy and Practical Poisoning Framework via Harmless Inputs.*](https://arxiv.org/abs/2505.17601)
+- Liang, Z. et al. (2025). [*Virus Infection Attack on LLMs: Your Poisoning Can Spread "VIA" Synthetic Data.*](https://arxiv.org/abs/2509.23041)
+- Jang, S. et al. (2025). [*Silent Branding Attack: Trigger-free Data Poisoning Attack on Text-to-Image Diffusion Models.*](https://arxiv.org/abs/2503.09669) CVPR 2025.
+- Lapid, R., Dubin, A. (2025). [*Backdoors in Conditional Diffusion: Threats to Responsible Synthetic Data Pipelines.*](https://arxiv.org/abs/2507.04726)
+- Wang, Z. et al. (2025). [*MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers.*](https://arxiv.org/abs/2508.14925)
+- Lakera Team (2026). [*Introduction to Data Poisoning: A 2026 Perspective.*](https://www.lakera.ai/blog/training-data-poisoning) Lakera blog.
+
+### 3. Google Cloud documentation
+- [Storage classes](https://cloud.google.com/storage/docs/storage-classes): Standard for the main bucket, Coldline for the holdout bucket
+- [Object Lifecycle Management](https://cloud.google.com/storage/docs/lifecycle): keep at most 3 old versions, delete them after 90 days
+- [Uniform bucket-level access](https://cloud.google.com/storage/docs/uniform-bucket-level-access)
+- [IAM roles for Cloud Storage](https://cloud.google.com/storage/docs/access-control/iam-roles): Object Admin for `pipeline-sa`, Object Viewer for `train-sa`
+- [Service accounts](https://cloud.google.com/iam/docs/service-account-overview)
+- [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials): logging in without key files
+- [Budgets and budget alerts](https://cloud.google.com/billing/docs/how-to/budgets)
+
+### 4. Python libraries and tools
+- [gcsfs](https://gcsfs.readthedocs.io/): reading and writing `gs://` paths from pandas
+- [PyArrow: reading and writing Parquet](https://arrow.apache.org/docs/python/parquet.html)
+- [Hugging Face Hub: downloading dataset files](https://huggingface.co/docs/hub/en/datasets-downloading), for downloading at a pinned revision
+- [Python `hashlib`](https://docs.python.org/3/library/hashlib.html): SHA-256 for checksums and the hash-based split
+- [Python `unittest`](https://docs.python.org/3/library/unittest.html): the 22 tests
+- [GNU Make manual](https://www.gnu.org/software/make/manual/): `make all`, `make test`, `make demo`
+
+### 5. Versioning and documentation
+- [Semantic Versioning](https://semver.org/), the idea behind `v1.0` → `v1.1` → `v2.0`
+- [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository): the `data-v1.0` tag
+- [Writing on GitHub (Markdown)](https://docs.github.com/en/get-started/writing-on-github): tables, images and links in this README
+
+### 6. Background on methods
+- Aurélien Géron, *Hands-On Machine Learning with Scikit-Learn, Keras & TensorFlow* (O'Reilly), chapter 2: building a stable test set by hashing an ID, the same idea as my `hash(group_id) % 10` split
+- [scikit-learn: cross-validation for grouped data](https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold), the standard reference for keeping related rows in the same split, as `group_id` does here
 
 ---
 
