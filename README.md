@@ -47,8 +47,6 @@ The sections below explain each answer in more detail.
 
 I also checked for exact duplicates, but there were none. Every one of these checks is counted in the manifest (section 10).
 
-The pipeline counts and logs every one of these (section 10).
-
 > ⚠️ `harmless-base` deliberately contains offensive and harmful prompts. The data is not redistributed in this repository.
 
 ---
@@ -317,12 +315,12 @@ So I pool both official splits after cleaning and split them again as described 
 **Avoiding leakage 1: grouping.**
 - Each pair gets a `group_id`: a SHA-256 hash of the first Human message, lower-cased and with spaces tidied.
 - Pairs that start with the same message share a `group_id` and always go to the same split. I always split whole groups, never single rows.
-- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`max_group_size`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_size`).
+- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`group_rekeying`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_size`).
 
 **How the split is done.** I use hashes instead of a random number generator, so the result is the same whatever the row order or library version.
 
 1. **Set aside the future data.** `b1 = int(sha256(group_id + "future-v1"), 16) % 100`
-   - `b1` 0–9 → **F1**, `b1` 10–19 → **F2**. That's about 20% of the groups, "and I don't touch them; they play the part of newly arriving data ("keep some data unseen", Lecture 2).
+   - `b1` 0–9 → **F1**, `b1` 10–19 → **F2**. That's about 20% of the groups, and I don't touch them; they play the part of newly arriving data ("keep some data unseen", Lecture 2).
    - `b1` 20–99 → the development pool.
 2. **Take the working set of about 30,000 pairs** from the development pool.
    - Sort the groups by `sha256(group_id + "sample-v1")` and take whole groups in that order.
@@ -342,7 +340,7 @@ So I pool both official splits after cleaning and split them again as described 
 
 **Avoiding leakage 2: position.**
 - In the raw data the preferred reply is *always* in `chosen`, so a model could learn the column instead of the preference.
-- For each pair I compute `int(sha256(pair_id), 16) % 2`. If it's 0, A is the chosen reply, B the rejected one, and `label` = 1.
+- For each pair I compute `int(sha256(pair_id + "pos-v1"), 16) % 2`. If it's 0, A is the chosen reply, B the rejected one, and `label` = 1. 
 - Otherwise A and B are swapped and `label` = 0.
 - This gives roughly 50/50 labels.
 
@@ -375,7 +373,7 @@ Each row of the processed files is one preference pair, with these columns:
 | `is_long_outlier` | True if either reply is longer than the 99th percentile **of train** | bool | yes/no flag |
 | `refusal_a`, `refusal_b` | True if the reply matches one of the refusal phrases in `config.json` (e.g. "I'm sorry, but I can't") | bool | yes/no flag, **only for checking results, not a model input** |
 | `label` | 1 if A is preferred, 0 if B is preferred | int8 | **target (binary)** |
-
+| `split` | Which split the row belongs to (train, dev, test, future_f1, future_f2) | dictionary string | category, for checking only, **not a model input** |
 
 In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is **structured** (Parquet with typed columns), but its main content is still **unstructured text**.
 
@@ -493,7 +491,7 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
   2. *Is the data representative?* The subset mix and label balance saved for each split.
   3. *Is there bias in the input data?* The length and refusal analyses above.
   4. *How accurate is the model for each subgroup?* The fixed evaluation slices (section 6).
-- **Decide the standard before testing.** The slices are fixed in config.json before the test set is used.
+- **Decide the standard before testing.** The slices are fixed in `config.json` before the test set is used.
 - **Be open about it.** The paper found that the auditors seen as the best are the ones who publish their methods and results. This repo publishes the code, the manifest and the drop counts. The raw text itself isn't republished; it stays at its public source.
 - **Labour and cost.** Fewer than half of the auditors check whether the data relies on unfair labour, or what the system costs the environment. I note here that the labels come from paid crowdwork.
   
@@ -514,7 +512,7 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 |---|---|---|
 | **Flipped labels with a hidden trigger** (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data | Pinned data version and SHA-256 checksums (sections 4 and 9), and the step 4 one-sided phrase check |
 | **Poison that looks harmless** (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words.|
-| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check." |
+| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check. |
 | **Poison spreading through generated data** (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
 | **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). |
 | **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | **Doesn't apply.** The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
