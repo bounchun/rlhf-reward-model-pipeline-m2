@@ -245,7 +245,21 @@ I use three things together, following Lecture 2 (slide 32): code, config and me
 
 ## 🔐 5. Data access 
 
-![Setup and access: inputs, service accounts and buckets](docs/img/setup_access.png)
+```
+Inputs
+  me (Colab login)          ─┐
+  Colab Secret DHAI_BUCKET  ─┼─►  Colab notebook
+  GitHub repo (code)        ─┘        │
+                                      │ same rights as
+                                      ▼
+                                 pipeline-sa
+                                   ├─ admin (read + write) ──►  gs://bc-rlhf-reward-2026
+                                   └─ admin (read + write) ──►  gs://bc-rlhf-reward-2026-holdout
+
+                                 train-sa
+                                   ├─ read only ──►  gs://bc-rlhf-reward-2026
+                                   └─ ✗ no access   gs://bc-rlhf-reward-2026-holdout
+```
 
 | Part of the system | How it reads or writes data | Account and permissions |
 |---|---|---|
