@@ -49,6 +49,7 @@ pip install -r requirements.txt
 make test && make demo                    # offline check
 export DHAI_BUCKET=<your-bucket> && make all   # full run, needs Google Cloud
 ```
+
 ---
 
 ## 📦 0. Data source and task
