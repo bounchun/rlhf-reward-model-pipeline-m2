@@ -525,8 +525,6 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 
 ## 📚 Further resources
 
-Sources I used beyond the module's slides, lectures and labs.
-
 ### 1. Dataset
 - [Anthropic/hh-rlhf on Hugging Face](https://huggingface.co/datasets/Anthropic/hh-rlhf), the dataset this project is built on
 - [Bai et al. (2022), *Training a Helpful and Harmless Assistant with RLHF*](https://arxiv.org/abs/2204.05862), the paper that released it (where the ~63% agreement figure comes from)
