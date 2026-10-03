@@ -529,7 +529,7 @@ This section draws on two course readings: the MOSTLY AI blog post *Data bias in
 
 ## 🛡️ 12. Data poisoning: threats and defences
 
-The course readings on data poisoning make three points:
+The readings I used on data poisoning make three points:
 - a tiny amount of poisoned data can change how a model behaves;
 - poisoned data can look completely harmless;
 - normal benchmarks often don't show the damage.
