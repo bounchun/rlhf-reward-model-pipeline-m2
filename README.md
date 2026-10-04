@@ -11,7 +11,7 @@ The sections below explain each answer in more detail.
 | **Realistic imperfections, missing values / other quality issues** | Yes, quite a lot. My run found 788 pairs with identical replies, 329 with mismatched conversations, 194 with an empty reply and 11 with a broken conversation format. There are also very long replies, possible personal data (emails, phone numbers) and noisy labels: researchers agreed with the crowdworkers only about 63% of the time (Bai et al., 2022). I also screen for duplicates and possible poisoning. All counts are in the manifest.|
 | Define a **meaningful AI/ML task** | Given a conversation and two possible replies, predict which one a human preferred. This is how a reward model is trained in RLHF. |
 | Identify the **target variable** and **relevant features** | The target is `label` (1 if reply A was preferred, 0 if B). The model inputs are `context`, `response_a`, `response_b`, `num_turns` and the reply lengths. `subset`, the refusal flags and `is_long_outlier` are only used to check results, not for training. |
-| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a model k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, which is how it will be used in practice. | 
+| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a model k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, just like when it's used for real.| 
 | Where will the **raw data** live? | In my Google Cloud bucket: `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`. The files are the original JSONL.gz files, never edited, and the bucket keeps old versions. |
 | Where will the **processed data** be stored? | Train and dev go in `gs://bc-rlhf-reward-2026/processed/v1.0/`. Test and future data go in a separate bucket, `bc-rlhf-reward-2026-holdout`, so training can't read them by mistake. |
 | What **file formats**? | Raw data stays as JSONL.gz, as downloaded. Processed data is Parquet. Manifests are JSON, and audit reports are CSV or JSON. |
@@ -67,10 +67,10 @@ export DHAI_BUCKET=<your-bucket> && make all   # full run, needs Google Cloud
 | **What a record looks like** | Two text fields, `chosen` and `rejected`. Each holds the whole conversation (`\n\nHuman: … \n\nAssistant: …`), and the two are identical except for the last Assistant reply. |
 | **Task** | Given a conversation (`context`) and two possible replies, A and B, predict which one the person preferred. This is a binary classification problem, and it's the reward-model step of RLHF. |
 | **Target** | `label` = 1 if A was preferred, 0 if B was preferred. |
-| **Metrics** | I’ll mainly measure how often the model correctly predicts which response a human preferred, using a 95% confidence range. I’ll also use ROC-AUC to measure how well the model distinguishes between preferred and non-preferred responses, F1 score to balance precision and recall, and accuracy to compare performance across different subsets of the data. |
+| **Metrics** | Mainly pairwise accuracy: how often the model picks the reply the human preferred, reported with a 95% confidence interval. I'll also report ROC-AUC, and accuracy for each subset and evaluation slice (section 6).|
 
 
-**Why I chose this dataset.** It isn't a clean benchmark. The problems just don't show up as empty cells in a table: they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
+**Why I chose this dataset.** It isn't a clean benchmark. Its problems don't show up as empty cells in a table; they're hidden inside the conversation text, so I had to parse the text to find them. In the v1.0 run I found:
 
 - 788 pairs where the "chosen" and "rejected" replies are exactly the same, so there's nothing to learn from them
 - 329 pairs where the two versions of the conversation don't match before the final reply
@@ -171,7 +171,7 @@ step9_store_processed
 ## 📸 Screenshots of the real run
    <a id="screenshots-of-the-real-run"></a>
 
-My buckets are private, so these screenshots from my own Google Cloud project and Colab run show what's in them and how they're set up.
+My buckets are private, so reviewers can't open them. These screenshots from my Google Cloud project and Colab run show what's inside and how they're set up.
 
 | What it shows | Screenshot |
 |---|---|
@@ -253,11 +253,13 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 | `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (used in every experiment) | me, the pipeline and the training account |
 | `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely) | me and the pipeline only. The training account has **no** access. |
 
-Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. The GCS lab also shows BigQuery as a database layer. It would be useful for SQL exploration, but this pipeline only ever reads whole files, so plain buckets are enough.
+Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. 
+
+The GCS lab also shows BigQuery as a database layer. It would be useful for SQL exploration, but this pipeline only ever reads whole files, so plain buckets are enough.
 
 ## 🏷️ 4. Data versioning 
 
-I use three things together, following Lecture 2 (slide 32): code, config and metadata go in Git, and the data goes in object storage.
+Following Lecture 2 (slide 32), code, config and metadata go in Git, and the data goes in object storage. Each version is identified by three things together:
 
 1. **A version number in every path.** This dataset is `v1.0` (`vMAJOR.MINOR`).
    - MAJOR goes up when the raw data or the way I split it changes.
