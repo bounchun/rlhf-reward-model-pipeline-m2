@@ -250,7 +250,7 @@ I only use **object storage (Google Cloud Storage), no database**. A database wo
 | `bc-rlhf-reward-2026` | raw, train, dev, manifests, models | Standard (used in every experiment) | me, the pipeline and the training account |
 | `bc-rlhf-reward-2026-holdout` | test, future F1/F2 | Coldline (read rarely) | me and the pipeline only. The training account has **no** access. |
 
-Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. 
+Keeping the test set in its own bucket means the training code can't read it, even by mistake, because it doesn't have permission. Storing this little data costs almost nothing. The GCS lab also shows BigQuery as a database layer. It would be useful for SQL exploration, but this pipeline only ever reads whole files, so plain buckets are enough.
 
 ## 🏷️ 4. Data versioning 
 
@@ -425,7 +425,7 @@ Collecting the data takes two scripts (`make scrape store`).
 
 **The environment is pinned too:**
 - Every library has an exact version (`==`) in `requirements.txt`, matching the Colab runtime, and nothing is upgraded during a run (no `pip install --upgrade`).
-- I only use libraries from the module's labs: `pandas`, `numpy`, `gcsfs` and `requests`, plus `fsspec`, which `gcsfs` is built on. The one extra is `pyarrow`, which pandas needs to read and write Parquet (the GCS tutorial recommends it too). Everything else (the JSON config, hashing, gzip and the `unittest` tests) uses the Python standard library.
+- I only use libraries from the module's labs: `pandas`, `numpy`, `gcsfs` and `requests`, plus `fsspec`, which `gcsfs` is built on. The one extra is `pyarrow`, which pandas needs to read and write Parquet (the GCS lab recommends Parquet for larger datasets). Everything else (the JSON config, hashing, gzip and the `unittest` tests) uses the Python standard library.
 - Python 3.13, the version Colab used for the v1.0 run.
 
 
