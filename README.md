@@ -20,6 +20,8 @@ The sections below explain each answer in more detail.
 | How will the system **access the data**? | Through `gcsfs`, using my Google login, with no key files in the code. The bucket name comes from a Colab Secret. Each service account only has the access it needs, and the training account can't read the holdout bucket at all. |
 
 ---
+<a id="how-to-run-it"></a>
+
 ## ▶️ How to run it
 
 **Option 1: quick check, no account needed (about 1 minute).** Open a new notebook at [colab.research.google.com](https://colab.research.google.com), paste this into one cell and run it:
@@ -211,7 +213,6 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 
 Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case the data ever needs to be loaded with several workers: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
 
-The in-between files stay in `data/interim/v1.0/` on my machine (not in Git) and can be rebuilt with `make preprocess`.
 
 **Data organisation: where every file lives**
 
@@ -452,19 +453,8 @@ Collecting the data takes two scripts (`make scrape store`).
 
 All settings live in `config.json`, not in the code: the salts, the split buckets, the percentile, the working-set size, the regexes and the evaluation slices.
 
-**To reproduce from scratch:**
-```bash
-git clone https://github.com/bounchun/rlhf-reward-model-pipeline && cd rlhf-reward-model-pipeline
-pip install -r requirements.txt
-export DHAI_BUCKET=⟨your-bucket⟩        # or set it as a Colab Secret
-make all                                 # steps 1-10 + sample queries → processed/v1.0/*, manifests/v1.0.json
-```
+**To rerun it:** see [How to run it](#how-to-run-it). `make all` runs steps 1–10 plus the sample queries; `make test` and `make demo` check everything offline, without Google Cloud or Hugging Face.
 
-**To check it without Google Cloud or Hugging Face** (useful for reviewers):
-```bash
-make test    # 22 unittest tests on fake hh-rlhf-style data with planted problems
-make demo    # full offline run of steps 1-10 → everything under data/demo/
-```
 `tests/fake_data.py` creates fake hh-rlhf data with a known number of problems planted in it: broken rows, missing values, mismatched conversations, empty and identical replies, duplicates, emails and phone numbers, and a one-sided trigger phrase. The tests check that each problem is dropped or flagged exactly as many times as it was planted. They also check that no group ends up in two splits, that the output columns are right, that the outlier threshold only uses train, that running twice gives byte-identical files, that a changed raw file is rejected, that sharding loses no rows, and that the review scoring works.
 
 With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
@@ -483,8 +473,6 @@ I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57
 | Split (step 7) | train 24,122 · dev 2,876 · test 3,004 (80/10/10); share of `label = 1`: 49.8% / 51.7% / 49.1%; no group in two splits |
 | Outlier threshold (train only) | 99th percentile = 210 words; 1.8–2.2% of pairs flagged in each split | 
 
-
-**Why grouping was needed.** Most conversations appear several times in hh-rlhf, at different lengths or with different reply pairs: about 2.7 pairs per opening message on average. If I had split by row, almost identical conversations would be in both train and test, and the test score would be too high. Grouping by `group_id` prevents that, and step 7 checks it.
 
 **Length bias depends on the subset.** How often the preferred reply is the longer one:
 
