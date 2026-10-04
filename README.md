@@ -259,7 +259,7 @@ The GCS lab also shows BigQuery as a database layer. It would be useful for SQL 
 
 ## 🏷️ 4. Data versioning 
 
-Following Lecture 2 (slide 32), code, config and metadata go in Git, and the data goes in object storage. Each version is identified by three things together:
+Following Lecture 2 (slide 32), code, config and metadata go in Git, and the data goes in object storage. I version the data in three ways:
 
 1. **A version number in every path.** This dataset is `v1.0` (`vMAJOR.MINOR`).
    - MAJOR goes up when the raw data or the way I split it changes.
@@ -308,7 +308,7 @@ Inputs
 
 ## ✂️ 6. Data split and validation strategy 
 
-I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. I don't use cross-validation.
+I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. 
                                                                                                                                             
 ```
 169,352 raw pairs
