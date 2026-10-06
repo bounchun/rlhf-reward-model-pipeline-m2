@@ -6,18 +6,18 @@ The sections below explain each answer in more detail.
 
 | Slide question | Answer |
 |---|---|
-| Select a suitable **raw data source** (public, licence checked) | I use `Anthropic/hh-rlhf` from Hugging Face, pinned to one fixed commit. It's public and under the MIT licence, so I'm allowed to use it. |
-| **At least 10,000 learning samples**? | Yes, easily. The source has 169,352 preference pairs. I work with a 30,002-pair subset (train/dev/test) and keep another 33,168 pairs aside as "future" data that I don't use yet. |
-| **Realistic imperfections, missing values / other quality issues** | Yes, quite a lot. My run found 788 pairs with identical replies, 329 with mismatched conversations, 194 with an empty reply and 11 with a broken conversation format. There are also very long replies, possible personal data (emails, phone numbers) and noisy labels: researchers agreed with the crowdworkers only about 63% of the time (Bai et al., 2022). I also screen for duplicates and possible poisoning. All counts are in the manifest.|
-| Define a **meaningful AI/ML task** | Given a conversation and two possible replies, predict which one a human preferred. This is how a reward model is trained in RLHF. |
-| Identify the **target variable** and **relevant features** | The target is `label` (1 if reply A was preferred, 0 if B). The model inputs are `context`, `response_a`, `response_b`, `num_turns` and the reply lengths. `subset`, the refusal flags and `is_long_outlier` are only used to check results, not for training. |
-| **Evaluation strategy**: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a model k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, just like when it's used for real.| 
-| Where will the **raw data** live? | In my Google Cloud bucket: `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`. The files are the original JSONL.gz files, never edited, and the bucket keeps old versions. |
-| Where will the **processed data** be stored? | Train and dev go in `gs://bc-rlhf-reward-2026/processed/v1.0/`. Test and future data go in a separate bucket, `bc-rlhf-reward-2026-holdout`, so training can't read them by mistake. |
-| What **file formats**? | Raw data stays as JSONL.gz, as downloaded. Processed data is Parquet. Manifests are JSON, and audit reports are CSV or JSON. |
-| **Database or object storage**? | Object storage only (Google Cloud Storage). Training just reads whole files from start to end. There are no joins, transactions or searches, so a database would add nothing. |
-| How are **data versions identified**? | Each version has its own folder (`v1.0`, then `v1.1` and so on). A manifest file records the checksums of every file and the Git commit of the code. I also tag the version in Git (`data-v1.0`), and the buckets keep old copies of overwritten files. |
-| How will the system **access the data**? | Through `gcsfs`, using my Google login, with no key files in the code. The bucket name comes from a Colab Secret. Each service account only has the access it needs, and the training account can't read the holdout bucket at all. |
+| Select a suitable raw data source (public, licence checked) | I use `Anthropic/hh-rlhf` from Hugging Face, pinned to one fixed commit. It's public and under the MIT licence, so I'm allowed to use it. |
+| At least 10,000 learning samples? | Yes, easily. The source has 169,352 preference pairs. I work with a 30,002-pair subset (train/dev/test) and keep another 33,168 pairs aside as "future" data that I don't use yet. |
+| Realistic imperfections, missing values / other quality issues** | Yes, quite a lot. My run found 788 pairs with identical replies, 329 with mismatched conversations, 194 with an empty reply and 11 with a broken conversation format. There are also very long replies, possible personal data (emails, phone numbers) and noisy labels: researchers agreed with the crowdworkers only about 63% of the time (Bai et al., 2022). I also screen for duplicates and possible poisoning. All counts are in the manifest.|
+| Define a meaningful AI/ML task | Given a conversation and two possible replies, predict which one a human preferred. This is how a reward model is trained in RLHF. |
+| Identify the target variable and relevant features | The target is `label` (1 if reply A was preferred, 0 if B). The model inputs are `context`, `response_a`, `response_b`, `num_turns` and the reply lengths. `subset`, the refusal flags and `is_long_outlier` are only used to check results, not for training. |
+| Evaluation strategy: train/dev/test or cross-validation, justified | A fixed 80/10/10 train/dev/test split rather than cross-validation. I have enough data, and training a model k times would cost too much. I split by conversation, so the test set only has conversations the model has never seen, just like when it's used for real.| 
+| Where will the raw data live? | In my Google Cloud bucket: `gs://bc-rlhf-reward-2026/raw/hh-rlhf/09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa/`. The files are the original JSONL.gz files, never edited, and the bucket keeps old versions. |
+| Where will the processed data be stored? | Train and dev go in `gs://bc-rlhf-reward-2026/processed/v1.0/`. Test and future data go in a separate bucket, `bc-rlhf-reward-2026-holdout`, so training can't read them by mistake. |
+| What file formats? | Raw data stays as JSONL.gz, as downloaded. Processed data is Parquet. Manifests are JSON, and audit reports are CSV or JSON. |
+| Database or object storage? | Object storage only (Google Cloud Storage). Training just reads whole files from start to end. There are no joins, transactions or searches, so a database would add nothing. |
+| How are **data versions identified? | Each version has its own folder (`v1.0`, then `v1.1` and so on). A manifest file records the checksums of every file and the Git commit of the code. I also tag the version in Git (`data-v1.0`), and the buckets keep old copies of overwritten files. |
+| How will the system **access the data? | Through `gcsfs`, using my Google login, with no key files in the code. The bucket name comes from a Colab Secret. Each service account only has the access it needs, and the training account can't read the holdout bucket at all. |
 
 ---
 <a id="how-to-run-it"></a>
@@ -185,7 +185,7 @@ My buckets are private, so reviewers can't open them. These screenshots from my 
 ## 🗄️  1. Raw data storage 
 
 
-I keep the raw data in a Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`. I set it up in `europe-west1` with the Standard storage class, uniform access control and public access blocked. **Object Versioning is on**, so if a file is ever overwritten or deleted, the old copy can still be recovered.
+I keep the raw data in a Google Cloud Storage bucket, `gs://bc-rlhf-reward-2026`. I set it up in `europe-west1` with the Standard storage class, uniform access control and public access blocked. Object Versioning is on, so if a file is ever overwritten or deleted, the old copy can still be recovered.
 
 The files are stored here:
 
@@ -208,7 +208,7 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 |---|---|---|---|
 | Raw | `gs://bc-rlhf-reward-2026/raw/…` | JSONL, gzip | The original files, kept exactly as downloaded |
 | Train / dev | `gs://bc-rlhf-reward-2026/processed/v1.0/{train,dev}.parquet` | Parquet (Snappy compression) | Stores columns with their types, is small on disk and loads quickly with pandas. Training reads whole splits in batches. |
-| **Test + future data** | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | Kept in a **separate bucket** (section 3) |
+| Test + future data | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | Kept in a separate bucket (section 3) |
 | Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | A record of the version that both people and code can read | 
 
 Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case the data ever needs to be loaded with several workers: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
@@ -274,8 +274,8 @@ Following Lecture 2 (slide 32), code, config and metadata go in Git, and the dat
    - the SHA-256 checksum of every raw and processed file
    - how many rows each cleaning rule dropped
 
-   The manifest is committed to Git, and that commit is tagged `data-v1.0` (see **Releases**). So any model can be traced back: **model → dataset version → code commit → raw data commit** (Lecture 3).
-3. **Object Versioning** on both buckets, as a safety net if a file is overwritten by mistake. A clean-up rule keeps at most **3 older versions** of each file and deletes older versions after **90 days** (`scripts/gcs_lifecycle.json`).
+   The manifest is committed to Git, and that commit is tagged `data-v1.0` (see Releases). So any model can be traced back: model → dataset version → code commit → raw data commit (Lecture 3).
+3. **Object Versioning** on both buckets, as a safety net if a file is overwritten by mistake. A clean-up rule keeps at most 3 older versions of each file and deletes older versions after 90 days (`scripts/gcs_lifecycle.json`).
 
 ## 🔐 5. Data access 
 
@@ -299,16 +299,16 @@ Inputs
 |---|---|---|
 | `src/step1_scrape_raw.py`, `src/step2_store_raw.py` | Downloads with `requests.get("https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨pinned revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz")`, then uploads with `gcsfs` | `pipeline-sa`: can read and write both buckets (Storage Object Admin) |
 | `src/step3_clean.py` … `src/step9_store_processed.py` | Read `raw/`; write `audit/`, `processed/`, the holdout bucket and `manifests/` | `pipeline-sa` |
-| Training | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: **can only read the main bucket** (Object Viewer) |
+| Training | `pd.read_parquet(f"gs://{bucket}/processed/{version}/train.parquet")` through `gcsfs`. The version comes from `config.json` (`dataset.version: v1.0`). | `train-sa`: can only read the main bucket (Object Viewer) |
 | Colab / my own machine | The same code | My Google login (`google.colab.auth` or `gcloud auth application-default login`) |
 
-- **No passwords, keys or bucket names in the code.** The bucket name comes from a Colab Secret or the `DHAI_BUCKET` environment variable.
+- No passwords, keys or bucket names in the code. The bucket name comes from a Colab Secret or the `DHAI_BUCKET` environment variable.
 - Key files and the `data/` folder are listed in `.gitignore`, so they can't be committed by accident.
-- **Limiting who can write also protects against poisoning.** Only `pipeline-sa` can write data, and every file is checked against the checksums in the manifest. If someone changed a file, from outside or from inside the project, the checksums wouldn't match (section 12).
+- Limiting who can write also protects against poisoning. Only `pipeline-sa` can write data, and every file is checked against the checksums in the manifest. If someone changed a file, from outside or from inside the project, the checksums wouldn't match (section 12).
 
 ## ✂️ 6. Data split and validation strategy 
 
-I use a fixed **80/10/10 train/dev/test split on a 30,002-pair working set**, and keep a separate **"future" reserve** that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. 
+I use a fixed 80/10/10 train/dev/test split on a 30,002-pair working set, and keep a separate "future" reserve that I don't use yet. Lecture 2 suggests keeping about 10–15% each for dev and test when data is not huge (the slides show 70/15/15 as an example). I chose 10% each, because with a 30,002-pair working set that still gives about 3,000 pairs per split, which is enough for a precise estimate, and it leaves more data for training. 
                                                                                                                                             
 ```
 169,352 raw pairs
@@ -332,7 +332,7 @@ hash(group) % 100
                         └── 9    ──►  test    3,004   (holdout bucket)
 ```
 
-**Why I split in this way.** A reward model has to score replies for **conversations it has never seen**. I want the evaluation to copy that situation:
+**Why I split in this way.** A reward model has to score replies for conversations it has never seen. I want the evaluation to copy that situation:
 - **Split by conversation, not by row.** Dev and test only contain conversations that aren't in train. With a row split, near-copies of the same conversation would end up in both train and test, and the test score would look better than it really is.
 - **A future reserve.** F1 and F2 stand in for new data that arrives later, so they're kept out of train, dev and test.
 - **Balanced labels and a metric that matches the job.** Swapping A and B stops the model from scoring well just by always guessing "A". Pairwise accuracy is exactly what a reward model is judged on in RLHF: how often it ranks the human-preferred reply higher.
@@ -351,7 +351,7 @@ So I pool both official splits after cleaning and split them again as described 
 **Avoiding leakage 1: grouping.**
 - Each pair gets a `group_id`: a SHA-256 hash of the first Human message, lower-cased and with spaces tidied.
 - Pairs that start with the same message share a `group_id` and always go to the same split. I always split whole groups, never single rows.
-- **Very big groups are split up again.** Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`max_group_size`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_rekeying`).
+- Very big groups are split up again. Generic openers like "hi" could create huge groups whose conversations have nothing else in common. Any group bigger than 50 pairs (`max_group_size`) is regrouped using the whole conversation instead, so identical conversations still stay together but one "hi" group can't unbalance the splits. In the v1.0 run the biggest group had 48 pairs, so this wasn't needed, but it's there for future data. The manifest records how many pairs were regrouped (`group_rekeying`).
 
 **How the split is done.** I use hashes instead of a random number generator, so the result is the same whatever the row order or library version.
 
@@ -400,18 +400,18 @@ Each row of the processed files is one preference pair, with these columns:
 |---|---|---|---|
 | `pair_id` | SHA-256 hash of context + chosen + rejected | string | identifier |
 | `group_id` | SHA-256 hash of the tidied first Human message (section 6) | string | identifier (for splitting only) |
-| `subset` | Which of the four subsets the pair comes from | dictionary string | category with 4 values; used to balance the splits and to check results, **not a model input** |
+| `subset` | Which of the four subsets the pair comes from | dictionary string | category with 4 values; used to balance the splits and to check results, not a model input |
 | `context` | The conversation before the final Assistant reply: the part `chosen` and `rejected` have in common, cut at the last `\n\nAssistant:`| string (UTF-8, NFC) | unstructured text |
 | `response_a`, `response_b` | The two final replies, in the order set in section 6 | string | unstructured text |
 | `num_turns` | Number of `\n\nHuman:` markers in the context | int16 | number (whole)|
 | `len_a_words`, `len_b_words` | Number of words in each reply (`len(text.split())`) | int32 | number |
 | `len_diff` | `len_a_words − len_b_words`, used to study length bias (section 10b) | int32 | number (can be negative) |
-| `is_long_outlier` | True if either reply is longer than the 99th percentile **of train** | bool | yes/no flag |
-| `refusal_a`, `refusal_b` | True if the reply matches one of the refusal phrases in `config.json` (e.g. "I'm sorry, but I can't") | bool | yes/no flag, **only for checking results, not a model input** |
-| `label` | 1 if A is preferred, 0 if B is preferred | int8 | **target (binary)** |
-| `split` | Which split the row belongs to (train, dev, test, future_f1, future_f2) | dictionary string | category, for checking only, **not a model input** |
+| `is_long_outlier` | True if either reply is longer than the 99th percentile of train | bool | yes/no flag |
+| `refusal_a`, `refusal_b` | True if the reply matches one of the refusal phrases in `config.json` (e.g. "I'm sorry, but I can't") | bool | yes/no flag, only for checking results, not a model input |
+| `label` | 1 if A is preferred, 0 if B is preferred | int8 | target (binary) |
+| `split` | Which split the row belongs to (train, dev, test, future_f1, future_f2) | dictionary string | category, for checking only, not a model input |
 
-In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is **structured** (Parquet with typed columns), but its main content is still **unstructured text**.
+In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is structured (Parquet with typed columns), but its main content is still unstructured text.
 
 
 ## 📥 9. Reproducibility of data collection 
@@ -421,7 +421,7 @@ Collecting the data takes two scripts (`make scrape store`).
 **Step 1, `src/step1_scrape_raw.py`** (download)
 1. Reads `hf_revision` from `config.json`. It has to be an exact commit hash; `main` is refused because it can change. `python -m src.step1_scrape_raw --resolve-revision` prints the current hash if I want to pin a newer one.
 2. Downloads only the 8 files I need (4 subsets × train/test) with `requests`, from `https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/⟨hf_revision⟩/⟨subset⟩/⟨split⟩.jsonl.gz`, into `data/downloads/⟨revision⟩/`.
-3. Saves the SHA-256 checksum of each file in `manifests/raw-⟨revision⟩.json`. If I run it again and any checksum is different, it **stops**.
+3. Saves the SHA-256 checksum of each file in `manifests/raw-⟨revision⟩.json`. If I run it again and any checksum is different, it stops.
 
 **Step 2, `src/step2_store_raw.py`** (move into storage)
 1. Checks each downloaded file against the raw manifest.
@@ -443,10 +443,10 @@ Collecting the data takes two scripts (`make scrape store`).
 | Script | What it does | Rows dropped |
 |---|---|---|
 | `step3_clean.py` | Five rules. **1** Drop lines that aren't valid JSON, and conversations that are missing or broken: each must start with a Human turn and end with an Assistant turn (regex `\n\n(Human\|Assistant):`). **2** Drop pairs where `chosen` and `rejected` differ before the final reply. **3** Tidy the text (Unicode NFC, extra spaces removed) but keep case and punctuation, because they matter. **4** Drop empty replies and pairs with identical replies. **5** Drop exact duplicates (same `pair_id`). | bad JSON 0 · broken/missing 11 · context mismatch 329 · empty 194 · identical 788 · duplicates 0 |
-| `step4_quality_checks.py` | Stops the run if any basic check fails: `pair_id` unique, no empty or identical replies, only known subsets, no missing values. Also looks for possible **poisoning** (8-word phrases that appear in at least 20 pairs and almost always on the same side, section 12), counts **emails and phone numbers**, and summarises reply lengths per subset. Results go to `audit/v1.0/`. | 0 (it only flags) |
+| `step4_quality_checks.py` | Stops the run if any basic check fails: `pair_id` unique, no empty or identical replies, only known subsets, no missing values. Also looks for possible poisoning (8-word phrases that appear in at least 20 pairs and almost always on the same side, section 12), counts emails and phone numbers, and summarises reply lengths per subset. Results go to `audit/v1.0/`. | 0 (it only flags) |
 | `step5_features.py` | Adds `group_id` (regrouping very big groups), swaps A/B and sets `label`, and adds `num_turns`, the length columns and the refusal flags. | — |
 | `step6_filter.py` | Sets aside F1/F2, then takes the ~30k working set from the rest, in whole groups and keeping the subset mix. | — (unused pairs are counted) |
-| `step7_split.py` | Splits into train/dev/test and checks that no group is in two splits. Works out the 99th-percentile reply length **on train only** and marks long outliers in every split. Outliers are marked, not removed, because length bias is worth studying (section 10b). | — |
+| `step7_split.py` | Splits into train/dev/test and checks that no group is in two splits. Works out the 99th-percentile reply length on train only and marks long outliers in every split. Outliers are marked, not removed, because length bias is worth studying (section 10b). | — |
 | `step8_shard.py` | Optional training shards, each holding whole batches (section 2). | — |
 | `step9_store_processed.py` | Checks the final columns and overlaps once more, writes the Parquet files to both buckets, saves their checksums and uploads the manifest. | — |
 | `step10_review_sample.py` | Exports 200 train pairs, balanced across subsets, to `audit/label_review_v1.0.csv` without showing the labels. The sheet is ready to be labelled by hand, and `make review-score` then records how often I agree with the crowdworkers. | — |
@@ -468,9 +468,9 @@ I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57
 | Stage | Result |
 |---|---|
 | Raw data | 169,352 pairs in 8 files (160,800 official train + 8,552 official test), with a SHA-256 checksum for every file |
-| Cleaning (step 3) | 1,322 pairs dropped (0.8%): 788 identical replies · 329 context mismatches · 194 empty replies · 11 broken or missing · 0 invalid lines · 0 exact duplicates → **168,030 pairs kept** |
+| Cleaning (step 3) | 1,322 pairs dropped (0.8%): 788 identical replies · 329 context mismatches · 194 empty replies · 11 broken or missing · 0 invalid lines · 0 exact duplicates → 168,030 pairs kept |
 | Validation (step 4) | All 5 basic checks passed (unique `pair_id`, no empty or identical replies, only known subsets, no missing values) |
-| Grouping (step 5) | The 168,030 pairs come from only **61,961 opening messages** (about 2.7 pairs each; the biggest group has 48, so no regrouping was needed) |
+| Grouping (step 5) | The 168,030 pairs come from only 61,961 opening messages (about 2.7 pairs each; the biggest group has 48, so no regrouping was needed) |
 | Filter (step 6) | Working set of 30,002 pairs (target 30,000), balanced across subsets; future reserve F1 16,516 and F2 16,652 pairs |
 | Split (step 7) | train 24,122 · dev 2,876 · test 3,004 (80/10/10); share of `label = 1`: 49.8% / 51.7% / 49.1%; no group in two splits |
 | Outlier threshold (train only) | 99th percentile = 210 words; 1.8–2.2% of pairs flagged in each split | 
@@ -527,7 +527,7 @@ The readings I used on data poisoning make three points:
 - poisoned data can look completely harmless;
 - normal benchmarks often don't show the damage.
 
-**This is a real risk for this project.** Rando & Tramèr (2024) attacked **this exact dataset** (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only **0.5%** of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
+This is a real risk for this project. Rando & Tramèr (2024) attacked **this exact dataset** (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only 0.5% of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
 
 Any new data added later (such as F1/F2) is a chance for poison to get in. As Lecture 2 put it: if an update causes *"sudden very dramatic changes"*, reject it.
 
@@ -538,7 +538,7 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 | **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check. |
 | **Poison spreading through generated data** (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
 | **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). |
-| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | **Doesn't apply.** The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
+| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | Doesn't apply. The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
 | **Someone inside changing files** (Lakera, 2026) | Anyone with write access to the buckets | Each account has only the access it needs, `raw/` is write-once, and Object Versioning and checksums show any change (section 5). |
 
 
