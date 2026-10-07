@@ -44,7 +44,7 @@ It should end with `OK` (22 tests passed) and `demo OK` (the whole pipeline, ste
 
 The run takes about 5 minutes and gives the same numbers as in section 10b, because the split uses hashes, not random numbers.
 
-To check the stored data without rerunning the pipeline, run only Settings, Install and Login, then the **Verify the buckets and read a file back** cell. Like Cell 8 of the GCS lab, it lists every file in both buckets and reads `dev.parquet` straight from the bucket with pandas. You should see the raw, processed, audit and manifest files in the main bucket, only `test`, `future_f1` and `future_f2` in the holdout bucket, and `Rows loaded: 2,876`. It shows only non-text columns, because the dataset contains harmful text.
+To check the stored data without rerunning the pipeline, run only Settings, Install and Login, then the Verify the buckets and read a file back cell. Like Cell 8 of the GCS lab, it lists every file in both buckets and reads `dev.parquet` straight from the bucket with pandas. You should see the raw, processed, audit and manifest files in the main bucket, only `test`, `future_f1` and `future_f2` in the holdout bucket, and `Rows loaded: 2,876`. It shows only non-text columns, because the dataset contains harmful text.
 
 **Option 3: on your own machine** (Python 3.13):
 ```bash
