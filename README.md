@@ -527,19 +527,19 @@ The readings I used on data poisoning make three points:
 - poisoned data can look completely harmless;
 - normal benchmarks often don't show the damage.
 
-This is a real risk for this project. Rando & Tramèr (2024) attacked **this exact dataset** (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only 0.5% of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
+This is a real risk for this project. Rando & Tramèr (2024) attacked this exact dataset (hh-rlhf `harmless-base`). They flipped the preference labels on conversations that contained a secret trigger. With only 0.5% of the data poisoned, the reward model's accuracy on triggered inputs fell from about 75% to about 44%. PoisonBench (Fu et al., 2025), which also uses HH-RLHF, found that bigger models aren't safer, and that the damage grows roughly with the log of the share of poisoned data.
 
 Any new data added later (such as F1/F2) is a chance for poison to get in. As Lecture 2 put it: if an update causes *"sudden very dramatic changes"*, reject it.
 
 | Attack (source) | How it could reach this project | My defence |
 |---|---|---|
-| **Flipped labels with a hidden trigger** (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data | Pinned data version and SHA-256 checksums (sections 4 and 9), and the step 4 one-sided phrase check |
-| **Poison that looks harmless** (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words.|
-| **Poison that benchmarks don't show** (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check. |
-| **Poison spreading through generated data** (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
-| **Repeated patterns learned without a trigger** (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). |
-| **Poisoned tool descriptions** (Wang et al., 2025, MCPTox) | Doesn't apply. The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
-| **Someone inside changing files** (Lakera, 2026) | Anyone with write access to the buckets | Each account has only the access it needs, `raw/` is write-once, and Object Versioning and checksums show any change (section 5). |
+| Flipped labels with a hidden trigger (Rando & Tramèr, 2024; PoisonBench) | Changed hh-rlhf files, or a poisoned batch of new data | Pinned data version and SHA-256 checksums (sections 4 and 9), and the step 4 one-sided phrase check |
+| Poison that looks harmless (Kong et al., 2025: normal-looking Q&A pairs that still plant a trigger) | A content filter would let it through, because nothing in it is harmful | The check looks at statistics (phrases repeated on one side, near-duplicates), not only at harmful words.|
+| Poison that benchmarks don't show (Alber et al., 2025: 0.001% of tokens, benchmark scores unchanged) | A poisoned model can still have good overall dev accuracy | The fixed evaluation slices (section 6), so overall accuracy is never the only check. |
+| Poison spreading through generated data (Liang et al., 2025, VIA) | Only if I added generated data | I don't (section 10). |
+| Repeated patterns learned without a trigger (Jang et al., 2025, Silent Branding; Lapid & Dubin, 2025, ControlNet backdoors: 1% poison → 90–98% attack success) | These papers are about images, but the idea carries over: a phrase that keeps appearing in chosen replies gets learned as "good" | The same one-sided phrase check (step 4). |
+| Poisoned tool descriptions (Wang et al., 2025, MCPTox) | Doesn't apply. The pipeline doesn't use any AI agents or external tools.| Noted in case agents or tools are added. |
+| Someone inside changing files (Lakera, 2026) | Anyone with write access to the buckets | Each account has only the access it needs, `raw/` is write-once, and Object Versioning and checksums show any change (section 5). |
 
 
 ---
