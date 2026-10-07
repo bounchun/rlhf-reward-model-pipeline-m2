@@ -499,7 +499,7 @@ In most of the helpfulness data, people tended to prefer the longer reply. In `h
 
 This section draws on two course readings: the MOSTLY AI blog post *Data bias in LLM and generative AI applications* (2023) and *Who Audits the Auditors?* (Costanza-Chock et al., FAccT 2022). hh-rlhf is a collection of human judgements, so a reward model trained on it picks up the crowdworkers' biases along with their preferences.
 
-| Bias type (MOSTLY AI) | How it shows up in hh-rlhf | What this project does |
+| Bias type (Mostly AI) | How it shows up in hh-rlhf | What this project does |
 |---|---|---|
 | **Selection bias** | The prompts and labels come mostly from US-based, English-speaking MTurk workers, so other languages, cultures and groups of users are under-represented. The subsets are also different sizes. | I note it here as a limit on who the model will work well for. The working set keeps the subset mix, and results are reported per slice (section 6). |
 | **Implicit bias** (annotators) | Each pair has one subjective label, and researchers and crowdworkers agreed only about 63% of the time. The paper also says the group of crowdworkers changed during the project. | A 200-pair review by hand (the sheet is made by step 10) to estimate how noisy the labels are, so results can be judged against that ceiling, not against 100%. |
