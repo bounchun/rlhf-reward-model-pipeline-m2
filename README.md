@@ -360,7 +360,7 @@ So I pool both official splits after cleaning and split them again as described 
    - `b1` 20–99 → the development pool.
 2. **Take the working set of about 30,000 pairs** from the development pool.
    - Sort the groups by `sha256(group_id + "sample-v1")` and take whole groups in that order.
-   - Do this **separately for each subset**, so the working set keeps the same subset mix as the full data.
+   - Do this separately for each subset, so the working set keeps the same subset mix as the full data.
    - 30k keeps training within the course's $50 compute budget.
 3. **Split the working set.** `b2 = int(sha256(group_id + "tdt-v1"), 16) % 10`
    - 0–7 → train (about 24,000)
