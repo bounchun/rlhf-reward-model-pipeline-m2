@@ -411,7 +411,7 @@ Each row of the processed files is one preference pair, with these columns:
 | `label` | 1 if A is preferred, 0 if B is preferred | int8 | target (binary) |
 | `split` | Which split the row belongs to (train, dev, test, future_f1, future_f2) | dictionary string | category, for checking only, not a model input |
 
-In Lecture 1 terms, the raw data is **semi-structured** (JSON lines with one whole conversation per field). The processed data is structured (Parquet with typed columns), but its main content is still unstructured text.
+In Lecture 1 terms, the raw data is semi-structured (JSON lines with one whole conversation per field). The processed data is structured (Parquet with typed columns), but its main content is still unstructured text.
 
 
 ## 📥 9. Reproducibility of data collection 
