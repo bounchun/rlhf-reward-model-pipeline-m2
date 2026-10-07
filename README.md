@@ -211,7 +211,7 @@ I created both buckets with `scripts/setup_gcs.sh`, which also sets their storag
 | Test + future data | `gs://bc-rlhf-reward-2026-holdout/v1.0/{test, future_f1, future_f2}.parquet` | Parquet | Kept in a separate bucket (section 3) |
 | Manifest | `gs://bc-rlhf-reward-2026/manifests/v1.0.json`, also committed to Git | JSON | A record of the version that both people and code can read | 
 
-Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is **off for now**. `step8_shard.py` is ready in case the data ever needs to be loaded with several workers: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
+Each row is one preference pair (the columns are listed in section 7 & 8). The processed data is well under 1 GB, so one Parquet file per split is enough. Cutting it into shards would only create lots of small files, which Lecture 2 warns against, so sharding is off for now. `step8_shard.py` is ready in case the data ever needs to be loaded with several workers: setting `shards.num_shards` above 1 writes `processed/v1.0/train_shards/train-0000i-of-0000N.parquet`. It works like the "Data shards" lab: rows are shuffled in a fixed order and every shard holds whole batches of 64 (`shards.batch_size`). The last shard takes whatever is left, so no rows are lost.
 
 
 **Data organisation: where every file lives**
