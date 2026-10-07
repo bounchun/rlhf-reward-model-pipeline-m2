@@ -381,7 +381,7 @@ So I pool both official splits after cleaning and split them again as described 
 - This gives roughly 50/50 labels.
 
 **Avoiding leakage 3: learn from train only.**
-- Anything the pipeline learns from the data is learned **on train only** and then applied to dev and test ("split → fit on train → transform", Lecture 2). In v1.0 that's the length-outlier threshold (210 words, the 99th percentile of train).
+- Anything the pipeline learns from the data is learned on train only and then applied to dev and test ("split → fit on train → transform", Lecture 2). In v1.0 that's the length-outlier threshold (210 words, the 99th percentile of train).
 - Dev is for tuning and choosing models. Test is kept apart in its own bucket and is only meant to be read once, at the very end.
 
 **Evaluation slices, fixed in `config.json` before anyone looks at the test set.** Checking results for each subgroup is one of the most common things auditors do (Costanza-Chock et al., 2022), so I've defined these slices in advance:
