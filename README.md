@@ -592,6 +592,33 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 
 ---
 
+## 🤖 Use of AI
+
+**Tools used**
+
+- **Claude** (Anthropic), in the claude.ai app. Model: Claude [Opus 5.5]
+
+**How I worked with it**
+| Part of the work | My role | How AI helped |
+| --- | --- | --- |
+| Project design | Chose the dataset, task and evaluation approach; decided on the group-based split, the two buckets and the versioning scheme after comparing options against Lectures 1–3 and the lecturer's feedback | Proposed and explained design options |
+| Code | Specified each pipeline step from the checklist; ran everything in Colab and locally; checked the outputs and test results | Wrote first versions of the scripts in `src/`, the tests, the `Makefile`, `scripts/setup_gcs.sh` and the Colab notebook | 
+| Debugging | Found the problems (Colab dependency conflicts, a "-dirty" Git flag in the manifest), applied the fixes and reran the pipeline | Suggested fixes |
+| Google Cloud | Created and configured my own GCP project, budget alert, buckets and service accounts | Step-by-step guidance |
+| README | Decided the content and structure; checked every number against my Colab run and `manifests/v1.0.json`; corrected wording | Drafted and revised the text and diagrams |
+| Language | — | Grammar and spelling |
+
+All numbers in this README come from my own pipeline run on 1 October 2026, recorded in `manifests/v1.0.json`, not from the AI.
+
+**Example prompts** 
+1. *"Add unittest tests on fake data with planted problems to check each cleaning rule."*
+2. *"pip install fails in Colab. Fix requirements.txt."*
+3. *"Compare my repo with the GCS lab and the shards lab notebooks. Did I miss anything?"*
+4. *"Check that the numbers in the README match the Colab output."*
+
+---
+
+
 ## 💻 Author
 
 **Boun Chun** · [@bounchun](https://github.com/bounchun)
