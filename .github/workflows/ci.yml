@@ -1,0 +1,26 @@
+# Runs the unit tests and the full offline demo (steps 1-11, reconciliation and EDA on
+# synthetic data with planted defects) on every push and pull request. No Google Cloud,
+# no Hugging Face and no secrets are needed (Lecture 6: "unit tests run automatically on
+# every change").
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+      - name: Unit tests
+        run: make test
+      - name: Offline end-to-end demo
+        run: DHAI_BUCKET= make demo
