@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline architecture v1.1</title>
+<!-- Source of docs/img/architecture_m2.png (rendered with headless Chromium at 2x). -->
+<style>
+  :root { --ink:#0b0b0b; --ink2:#52514e; --line:#c9c7c0; --bg:#fcfcfb;
+          --auto:#2a78d6; --autobg:#eaf2fc; --hold:#eb6834; --holdbg:#fdeee7; --man:#6b6a66; --manbg:#f2f1ee;
+          --store:#1baf7a; --storebg:#e6f6ef; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); font: 13px/1.35 "DejaVu Sans", Arial, sans-serif; color:var(--ink); }
+  .wrap { width: 1500px; padding: 22px 26px 18px; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: var(--ink2); margin: 0 0 16px; font-size: 13px; }
+  .stages { display:grid; grid-template-columns: repeat(6, 1fr); gap: 0 26px; position: relative; }
+  .head { font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2);
+          border-bottom: 2px solid var(--ink); padding-bottom: 5px; margin-bottom: 10px; position: relative; }
+  .head:not(.last)::after { content: "➜"; position:absolute; right:-22px; top:-2px; color: var(--ink); font-size: 17px; }
+  .col { display:flex; flex-direction:column; gap: 9px; }
+  .box { border: 1.6px solid var(--auto); background: var(--autobg); border-radius: 7px; padding: 7px 9px; }
+  .box > b { display:block; font-size: 13px; }
+  .box code { font: 11.5px "DejaVu Sans Mono", monospace; color: var(--ink); }
+  .box .d { color: var(--ink2); font-size: 11.5px; margin-top: 2px; }
+  .store { border-color: var(--store); background: var(--storebg); }
+  .hold { border-color: var(--hold); background: var(--holdbg); }
+  .man { border: 1.6px dashed var(--man); background: var(--manbg); }
+  .layers { display:grid; grid-template-columns: 1fr 1fr 1fr 1.1fr; gap: 14px; margin-top: 18px; }
+  .layer { border-radius: 7px; padding: 8px 10px; border: 1.6px solid var(--store); background: var(--storebg); }
+  .layer.h { border-color: var(--hold); background: var(--holdbg); }
+  .layer b { font-size: 13px; }
+  .layer div { font: 11.5px "DejaVu Sans Mono", monospace; margin-top: 3px; color: var(--ink); }
+  .legend { display:flex; gap: 22px; margin-top: 14px; color: var(--ink2); font-size: 12px; align-items:center; }
+  .sw { display:inline-block; width: 22px; height: 13px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+</style>
+</head>
+<body><div class="wrap">
+<h1>Data pipeline v1.1 — from the pinned Hugging Face release to model-ready inputs</h1>
+<p class="sub"><code>make all</code> runs every blue step in order; each step records counts, settings and SHA-256 checksums in <code>manifests/v1.1.json</code>. Orange = holdout bucket (training account has no access). Dashed = manual.</p>
+
+<div class="stages">
+  <div class="col">
+    <div class="head">1 Source</div>
+    <div class="box man"><b>Anthropic/hh-rlhf</b><div class="d">Hugging Face, MIT licence, commit <code>09be8c5</code> pinned in <code>config.json</code></div></div>
+    <div class="box man"><b>Pick &amp; pin the revision</b><div class="d">manual, once (<code>--resolve-revision</code>)</div></div>
+    <div class="box man"><b>One-off GCP setup</b><div class="d"><code>setup_gcs.sh</code>: 2 buckets, versioning, lifecycle, 2 service accounts; Colab Secret <code>DHAI_BUCKET</code></div></div>
+  </div>
+  <div class="col">
+    <div class="head">2 Ingest</div>
+    <div class="box"><b>step1_scrape_raw</b><div class="d">8 files over HTTPS at the pinned commit; SHA-256 → <code>manifests/raw-&lt;rev&gt;.json</code>; stops on any changed checksum</div></div>
+    <div class="box"><b>step2_store_raw</b><div class="d">upload, read back, verify; <code>raw/</code> is write-once</div></div>
+  </div>
+  <div class="col">
+    <div class="head">3 Validate</div>
+    <div class="box"><b>step3_clean — raw data contract</b><div class="d">checksums re-verified; bad rows → <b>quarantine</b> with reason + file + line; PII masked; <code>rows_read = kept + quarantined</code> asserted</div></div>
+    <div class="box"><b>step4_quality_checks</b><div class="d">hard checks (stop run), poisoning screen, residual-PII check</div></div>
+    <div class="box"><b>step9 data contract</b><div class="d">17 rules on every split, <code>validation_log.csv</code>; HARD violation ⇒ nothing uploaded</div></div>
+  </div>
+  <div class="col">
+    <div class="head">4 Store</div>
+    <div class="box store"><b>gs://bc-rlhf-reward-2026</b><div class="d">Standard, europe-west1, versioned: <code>raw/</code>, <code>quarantine/</code>, <code>processed/v1.1/</code>, <code>audit/</code>, <code>manifests/</code></div></div>
+    <div class="box hold"><b>gs://…-holdout</b><div class="d">Coldline: <code>v1.1/test, future_f1, future_f2</code> + their model inputs</div></div>
+    <div class="box"><b>step9_store_processed</b><div class="d">deterministic Parquet, SHA-256 per file</div></div>
+  </div>
+  <div class="col">
+    <div class="head">5 Transform</div>
+    <div class="box"><b>step5_features</b><div class="d"><code>group_id</code>, A/B swap → <code>label</code>, lengths, refusal flags</div></div>
+    <div class="box"><b>step6_filter · step7_split</b><div class="d">future reserve; 30k working set; 80/10/10 split by hashed group; outlier threshold fitted on train</div></div>
+    <div class="box"><b>step11_model_inputs</b><div class="d">left-truncated texts; log-length features scaled with <b>train</b> mean/SD</div></div>
+  </div>
+  <div class="col">
+    <div class="head last">6 Output</div>
+    <div class="box"><b>reconcile</b><div class="d">independent recount from raw: 7 checks must agree</div></div>
+    <div class="box"><b>eda</b><div class="d"><code>docs/eda/</code>: 6 figures, summary, findings → rules</div></div>
+    <div class="box"><b>sample_queries · review sheet</b><div class="d">sanity queries on train/dev; blind 200-pair label review</div></div>
+    <div class="box man"><b>Manual review</b><div class="d">label review, PII spot-check, refusal phrases</div></div>
+    <div class="box man"><b>→ Milestone 3</b><div class="d"><code>train-sa</code> reads <code>processed/v1.1/model_inputs</code></div></div>
+  </div>
+</div>
+
+<div class="layers">
+  <div class="layer"><b>Raw (bronze)</b><div>raw/hh-rlhf/&lt;rev&gt;/*.jsonl.gz</div><div>never edited · JSONL.gz</div></div>
+  <div class="layer"><b>Clean (silver)</b><div>processed/v1.1/{train,dev}.parquet</div><div>quarantine/v1.1/quarantine.parquet</div></div>
+  <div class="layer"><b>Curated (gold)</b><div>processed/v1.1/model_inputs/*.parquet</div><div>numeric_scaler.json · docs/eda/</div></div>
+  <div class="layer h"><b>Holdout (read once, at the end)</b><div>v1.1/{test,future_f1,future_f2}.parquet</div><div>v1.1/model_inputs/*.parquet</div></div>
+</div>
+
+<div class="legend">
+  <span><span class="sw" style="background:var(--autobg);border:1.6px solid var(--auto)"></span>automated (<code>make all</code>, Colab, CI)</span>
+  <span><span class="sw" style="background:var(--manbg);border:1.6px dashed var(--man)"></span>manual</span>
+  <span><span class="sw" style="background:var(--storebg);border:1.6px solid var(--store)"></span>main bucket</span>
+  <span><span class="sw" style="background:var(--holdbg);border:1.6px solid var(--hold)"></span>holdout bucket</span>
+  <span>ETL: transformations run in Python before loading; the raw layer is kept so any rule can be fixed and re-run.</span>
+</div>
+</div></body></html>

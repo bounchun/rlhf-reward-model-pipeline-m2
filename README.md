@@ -1,4 +1,71 @@
-# 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 1
+# 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestones 1 & 2
+
+> **Milestone 2 (data understanding and pipeline) starts just below.** The Milestone 1 answers (data source, split, storage, versioning, access) follow it unchanged, from [Milestone 1 questions at a glance](#-milestone-1-questions-at-a-glance).
+
+## 🧭 Milestone 2 at a glance (dataset version v1.1)
+
+| Milestone 2 requirement | Where it is |
+|---|---|
+| EDA that drives decisions | `src/eda.py` (`make eda`) → 6 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.2](#m22-what-the-eda-found-and-what-it-changed) |
+| Pipeline: acquire → validate → store → transform | Steps 1–11 (`make all`), diagram in [M2.1](#m21-pipeline-architecture) |
+| Validation that fails loudly | `src/contract.py`: raw contract in step 3 (bad rows go to a **quarantine** with reason, file and line), 17-rule processed contract in step 9 (`audit/v1.1/validation_log.csv`; a HARD violation stops the run before anything is uploaded) |
+| Cleaning and transformation | step 3 (normalise, PII masking, 7 quarantine reasons), step 5 (A/B swap, features), step 7 (train-fitted outlier flag), **step 11** (model-ready inputs: left-truncated contexts, log-length features scaled with the train mean/SD) |
+| Second method / reconciliation | `src/reconcile.py` (`make reconcile`): recounts everything from the raw files with plain Python; 7 checks must agree |
+| Reproducibility | pinned data commit and libraries, hash-based splits, byte-identical reruns (tested), **35 tests** and an offline demo run on every push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Changes since v1.0 | [M2.3](#m23-changes-since-v10-and-why) |
+
+### M2.1 Pipeline architecture
+
+![Pipeline architecture v1.1](docs/img/architecture_m2.png)
+
+*Source of the diagram: `docs/architecture_m2.html`. Blue steps are automated by `make all` (and the Colab notebook); dashed boxes are manual.*
+
+**ETL, not ELT.** The transformations (parsing conversations, the A/B swap, hashing groups, masking PII) are Python code, not SQL, and the whole dataset is 79 MB of raw files, so the work runs in one Python process (about 2½ minutes for steps 1–11) and only the cleaned Parquet files are loaded into storage. The raw layer is kept untouched (write-once, versioned bucket), so the main advantage of ELT — fixing a rule and re-running from the raw data — is kept too. Apache Beam / Dataflow (Lecture 6) would add cost and machinery without any benefit at this size; the pipeline still follows the same ideas: a data contract per row, a quarantine with reasons, counters, idempotent reruns and a reconciliation.
+
+### M2.2 What the EDA found, and what it changed
+
+All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`). Structure and quality checks look at all rows; distributions and relationships use **train only**; baselines are fitted on train and scored on dev; the holdout bucket is never read.
+
+| # | Finding (real data, v1.1) | Decision in the pipeline |
+|---|---|---|
+| 1 | In the raw files the preferred reply is **always** `chosen`: a model could reach 100% by learning the column | A/B swap by `hash(pair_id)`; label share now 49.8% in train |
+| 2 | 1,323 of 169,352 raw pairs break a rule; the rate differs by subset (13.0 per 1,000 in helpful-rejection-sampled vs 4.7 in harmless-base; χ² p = 6e-65, Cramér's V = 0.04), so the problems are not "missing completely at random" | Quarantine with reason and source line instead of a silent drop; `rows_read = kept + quarantined` asserted (fig. 1) |
+| 3 | 93% of pairs share their opening prompt with another pair, and **92% of official test pairs have their prompt in the official train split** | Confirms the M1 group split; contract rule "no `group_id` in two splits" (fig. 2) |
+| 4 | Reply length is right-skewed (skew 2.0, −0.4 after `log1p`); the 1.5×IQR fence would flag 5% of replies | Flag (not delete) above the train 99th percentile (210 words); `log1p` lengths in step 11 (fig. 3) |
+| 5 | 9.7% of train contexts are longer than 256 words | Step 11 keeps the newest turns (left truncation) and records `context_truncated` |
+| 6 | The preferred reply is longer in 58% of helpful-base pairs but only 42% of harmless-base pairs; pooled (52%) this cancels out (Cramér's V = 0.14) | Length is a shortcut that depends on the subset: M3 reports accuracy per subset and per length-gap slice (fig. 4) |
+| 7 | Length alone gets 51.4% on dev pooled, but **58.2%** with one length model per subset | These are the baselines the M3 reward model must beat on every subset (fig. 5) |
+| 8 | 47% of replies use the typographic apostrophe ’, so the v1.0 refusal regex (straight `'`) flagged only 0.09% of pairs | Refusal phrases rebuilt from the data and made apostrophe-agnostic: 2.3% flagged |
+| 9 | When only one reply is a refusal, it is preferred in 75% of harmless-base pairs but 27% of helpful-base pairs | A second subset-dependent shortcut: refusal slice per subset in M3 (fig. 6) |
+| 10 | 304 pairs contain an e-mail and 724 a phone-like number | Masked as `[EMAIL]` / `[PHONE]`; step 4 checks that none is left |
+
+### M2.3 Changes since v1.0, and why
+
+The data split, storage and access design from Milestone 1 are **unchanged** (same salts, same buckets). v1.1 is a MINOR version (section 4: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
+
+| Change | Why |
+|---|---|
+| Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Lecture 6: "don't crash, don't hide"; every rejected row keeps its reason, file and line number |
+| Processed data contract + `validation_log.csv` | Lecture 5: record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
+| PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed **before** masking so pair ids and splits do not move |
+| Refusal phrases v1.1 | EDA finding 8 (planned in the M1 README) |
+| Step 11 model-ready inputs | Lecture 5: fit on train, transform every split; prepares M3 |
+| `reconcile.py`, `eda.py`, CI workflow | Evidence that the pipeline is correct and reproducible |
+
+### M2.4 v1.1 run on the real data
+
+| Check | Result |
+|---|---|
+| Raw input | 8 files, all SHA-256 checksums equal to `manifests/raw-09be8c5….json` |
+| Row accounting (step 3) | 169,352 read = 168,029 kept + 1,323 quarantined (788 identical replies · 329 context mismatch · 194 empty · 11 malformed turns · 1 identical after PII masking) |
+| Quality checks (step 4) | all 6 hard checks pass, 0 e-mail / phone patterns left, poisoning screen: 0 flagged |
+| Splits (step 7) | train 24,122 · dev 2,876 · test 3,004 · F1 16,516 · F2 16,652 — identical to v1.0 |
+| Data contract (step 9) | 17 rules × 5 splits, 0 violations, 0 warnings |
+| Model inputs (step 11) | scaler fitted on 24,122 train rows; 9.7% of train contexts truncated (8.3% dev) |
+| Reconciliation | all 7 independent checks agree |
+| EDA | 6 figures + 10 findings in `docs/eda/` |
+
+---
 
 ## 🎯 Milestone 1 questions at a glance
 
@@ -34,7 +101,7 @@ The sections below explain each answer in more detail.
 !DHAI_BUCKET= make demo && echo "demo OK"
 ```
 
-It should end with `OK` (22 tests passed) and `demo OK` (the whole pipeline, steps 1–10, run on fake data with planted problems). Nothing touches Google Cloud.
+It should end with `OK` (35 tests passed) and `demo OK` (the whole pipeline, steps 1–11, the reconciliation and the EDA, run on fake data with planted problems). Nothing touches Google Cloud. The same two commands run on every push in GitHub Actions.
 
 **Option 2: the full pipeline on the real data.** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bounchun/rlhf-reward-model-pipeline/blob/main/notebooks/run_pipeline_colab.ipynb)
 1. Click the badge, then **File → Save a copy in Drive**.
@@ -42,7 +109,7 @@ It should end with `OK` (22 tests passed) and `demo OK` (the whole pipeline, ste
 3. In the first code cell, set `GCP_PROJECT` to your project ID.
 4. Run the cells from top to bottom. Run **0b** once to create your buckets, and skip the cells marked *skip*.
 
-The run takes about 5 minutes and gives the same numbers as in section 10b, because the split uses hashes, not random numbers.
+The run takes about 5–10 minutes and gives the same numbers as in [M2.4](#m24-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The last Milestone 2 cell downloads `docs/eda/` and `manifests/v1.1.json` to commit.
 
 To check the stored data without rerunning the pipeline, run only Settings, Install and Login, then the Verify the buckets and read a file back cell. Like Cell 8 of the GCS lab, it lists every file in both buckets and reads `dev.parquet` straight from the bucket with pandas. You should see the raw, processed, audit and manifest files in the main bucket, only `test`, `future_f1` and `future_f2` in the holdout bucket, and `Rows loaded: 2,876`. It shows only non-text columns, because the dataset contains harmful text.
 
@@ -51,7 +118,8 @@ To check the stored data without rerunning the pipeline, run only Settings, Inst
 git clone https://github.com/bounchun/rlhf-reward-model-pipeline && cd rlhf-reward-model-pipeline
 pip install -r requirements.txt
 make test && make demo                    # offline check
-export DHAI_BUCKET=<your-bucket> && make all   # full run, needs Google Cloud
+export DHAI_BUCKET=<your-bucket> && make all   # full run (steps 1-11, reconcile, eda), needs Google Cloud
+DHAI_BUCKET= make all                          # or: full run with local folders instead of buckets
 ```
 
 ---
@@ -102,7 +170,11 @@ I followed the module's Milestone 1 checklist and wrote one Python script for ea
 | Code for sharding (if needed) | `step8_shard.py` | train → batch-aligned shards; off by default (section 2) |
 | Code to store the preprocessed data | `step9_store_processed.py` | splits → `processed/` and the holdout bucket, final validation, manifest |
 | Extra quality check: label review | `step10_review_sample.py`, `score_review.py` | train → blind 200-pair sheet (created in v1.0) |
-| Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/v1.0/sample_queries.json` |
+| Extra: sample queries | `sample_queries.py` | stored train/dev → 7 example queries printed + `audit/<version>/sample_queries.json` |
+| **M2:** data contract | `contract.py` | raw-record rules (step 3) and 17 processed-split rules (step 9) |
+| **M2:** model-ready inputs | `step11_model_inputs.py` | stored splits → `processed/<version>/model_inputs/` (+ holdout), scaler fitted on train |
+| **M2:** reconciliation | `reconcile.py` | raw files + stored outputs → `audit/<version>/reconciliation.json` |
+| **M2:** EDA | `eda.py` | interim + train/dev → `docs/eda/` figures, summary, findings |
 
 **➕ Extra steps**
 
@@ -113,7 +185,7 @@ I followed the module's Milestone 1 checklist and wrote one Python script for ea
 | **Sample queries** | `sample_queries.py`. A few pandas queries on the stored train/dev files: split sizes and label balance, subset mix, conversation length, length bias, refusals, outliers, and looking up one pair by its `pair_id`. They check that the stored data looks right. They never touch the holdout bucket. |
 | **Data validation** | `step3_clean.py` re-checks the raw file checksums and applies 5 cleaning rules, counting what each one drops. `step4_quality_checks.py` stops the run if any basic check fails. `step7_split.py` checks that no conversation group appears in two splits, and `step9_store_processed.py` checks the final columns and overlaps again before uploading. |
 | **Quality checks** | `step4_quality_checks.py` looks for possible poisoning, personal data (emails, phone numbers) and length problems. `step10_review_sample.py` and `score_review.py` are for checking the labels by hand: the sheet of 200 pairs is created in v1.0.|
-| **Tests** | `tests/` has 22 unittest tests that run on fake data with problems planted on purpose, to check that the pipeline catches each one (`make test`). |
+| **Tests** | `tests/` has 35 unittest tests (22 from M1, 13 added in M2) that run on fake data with problems planted on purpose, to check that the pipeline catches each one (`make test`). |
 
 
 The in-between files that each step creates (`data/interim/`) stay on my machine and are never committed to Git. Before the split happens they still include the test rows, so I don't upload them to a bucket that the training account can read.
@@ -128,11 +200,18 @@ src/common.py                storage (GCS via gcsfs, or local), hashing, manifes
 src/text_utils.py            parsing helpers for hh-rlhf conversation strings
 src/step1_ … step10_*.py     the pipeline steps above (each file starts with its input/output docs)
 src/sample_queries.py        example queries on the stored data
+src/contract.py              M2: the data contract as code (raw + processed rules)
+src/step11_model_inputs.py   M2: model-ready inputs, fitted on train only
+src/reconcile.py             M2: independent recount from the raw files
+src/eda.py                   M2: exploratory data analysis -> docs/eda/
+docs/eda/                    M2: EDA figures, eda_summary.json, findings.csv (aggregates only)
+docs/architecture_m2.html    M2: source of docs/img/architecture_m2.png
+.github/workflows/ci.yml     M2: tests + offline demo on every push
 scripts/setup_gcs.sh         creates both buckets, versioning, lifecycle, service accounts
 scripts/fill_readme.py       filled the README numbers from the manifest after the first run
 docs/img/                    screenshots of the real run
 notebooks/run_pipeline_colab.ipynb   Colab runner (auth + Secrets, no hard-coded credentials)
-tests/                       22 unittest tests on synthetic data with planted defects
+tests/                       35 unittest tests on synthetic data with planted defects
 manifests/                   committed dataset manifests (lineage)
 ```
 
@@ -455,13 +534,13 @@ Collecting the data takes two scripts (`make scrape store`).
 
 All settings live in `config.json`, not in the code: the salts, the split buckets, the percentile, the working-set size, the regexes and the evaluation slices.
 
-**To rerun it:** see [How to run it](#how-to-run-it). `make all` runs steps 1–10 plus the sample queries; `make test` and `make demo` check everything offline, without Google Cloud or Hugging Face.
+**To rerun it:** see [How to run it](#how-to-run-it). `make all` runs steps 1–11 plus the sample queries, the reconciliation and the EDA; `make test` and `make demo` check everything offline, without Google Cloud or Hugging Face.
 
 `tests/fake_data.py` creates fake hh-rlhf data with a known number of problems planted in it: broken rows, missing values, mismatched conversations, empty and identical replies, duplicates, emails and phone numbers, and a one-sided trigger phrase. The tests check that each problem is dropped or flagged exactly as many times as it was planted. They also check that no group ends up in two splits, that the output columns are right, that the outlier threshold only uses train, that running twice gives byte-identical files, that a changed raw file is rejected, that sharding loses no rows, and that the review scoring works.
 
 With the same `config.json` and the same commit, a rerun produces byte-identical Parquet files, which the checksums in the manifest confirm.
 
-### 📊 10b. Results of the v1.0 run (from `manifests/v1.0.json`)
+### 📊 10b. Results of the v1.0 run (from `manifests/v1.0.json`; v1.1 results are in [M2.4](#m24-v11-run-on-the-real-data))
 
 I ran the pipeline on 1 October 2026 on `Anthropic/hh-rlhf` commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa`. All numbers come from `manifests/v1.0.json`.
 
@@ -491,7 +570,7 @@ In most of the helpfulness data, people tended to prefer the longer reply. In `h
 
 **PII scan (step 4): counted, not removed.** 304 pairs contain something that looks like an email address and 728 something that looks like a phone number, mostly in `harmless-base` and `helpful-online`. The phone pattern also catches other long numbers, so 728 is an upper limit. I don't republish the text. They should be checked by hand before any model is trained, to decide whether they need masking.
 
-**Known limitation: the refusal flags.** My refusal phrases in `config.json` match how modern assistants say no ("I'm sorry, but I can't…"), but the 2021 models in hh-rlhf word it differently, so the flags only fire on 0.07–0.11% of pairs. The flags are only used for checking results, never as a model input, so the processed data isn't affected, but the refusal slice is too small to be useful for now. A better approach is to build the phrases from the data itself (the most common openings of `harmless-base` replies) and rerun steps 5–10 as version `v1.1`.
+**Known limitation: the refusal flags (fixed in v1.1, see M2.2 finding 8).** My refusal phrases in `config.json` match how modern assistants say no ("I'm sorry, but I can't…"), but the 2021 models in hh-rlhf word it differently, so the flags only fire on 0.07–0.11% of pairs. The flags are only used for checking results, never as a model input, so the processed data isn't affected, but the refusal slice is too small to be useful for now. A better approach is to build the phrases from the data itself (the most common openings of `harmless-base` replies) and rerun steps 5–10 as version `v1.1`.
 
 ---
 
@@ -578,7 +657,7 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 - [PyArrow: reading and writing Parquet](https://arrow.apache.org/docs/python/parquet.html)
 - [Hugging Face Hub: downloading dataset files](https://huggingface.co/docs/hub/en/datasets-downloading), for downloading at a pinned revision
 - [Python `hashlib`](https://docs.python.org/3/library/hashlib.html): SHA-256 for checksums and the hash-based split
-- [Python `unittest`](https://docs.python.org/3/library/unittest.html): the 22 tests
+- [Python `unittest`](https://docs.python.org/3/library/unittest.html): the 35 tests
 - [GNU Make manual](https://www.gnu.org/software/make/manual/): `make all`, `make test`, `make demo`
 
 ### 5. Versioning and documentation
@@ -607,6 +686,7 @@ Any new data added later (such as F1/F2) is a chance for poison to get in. As Le
 | Google Cloud | Created and configured my own GCP project, budget alert, buckets and service accounts | Step-by-step guidance |
 | README | Decided the content and structure; checked every number against my Colab run and `manifests/v1.0.json`; corrected wording | Drafted and revised the text and diagrams |
 | Language | — | Grammar and spelling |
+| Milestone 2 (Oct 2026) | [BC: describe your role, e.g. which findings and decisions you checked or changed] | Claude wrote first versions of `contract.py`, the quarantine in step 3, `step11_model_inputs.py`, `reconcile.py`, `eda.py`, the new tests, the CI workflow, the architecture diagram and the M2 README sections, and ran the pipeline on the real data (checksums verified against the pinned manifest) |
 
 All numbers in this README come from my own pipeline run on 1 October 2026, recorded in `manifests/v1.0.json`, not from the AI.
 
