@@ -99,7 +99,7 @@ def write_config(path: Path, base: Path | None = None, working_set_size: int = 3
     cfg["split"]["working_set_size"] = working_set_size
     cfg["storage"].update({k: str(base / v) for k, v in {
         "local_root": "lake", "local_holdout_root": "holdout", "download_dir": "downloads",
-        "interim_dir": "interim", "manifest_dir": "manifests", "audit_dir": "audit"}.items()})
+        "interim_dir": "interim", "manifest_dir": "manifests", "audit_dir": "audit", "eda_dir": "eda"}.items()})
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(cfg, indent=2))
     return path

@@ -20,7 +20,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 
-from src import contract
+from src import contract, eda, reconcile, step11_model_inputs
 from src import (sample_queries, score_review, step1_scrape_raw, step2_store_raw, step3_clean, step4_quality_checks, step5_features,
                  step6_filter, step7_split, step8_shard, step9_store_processed, step10_review_sample)
 from src.common import OUTPUT_COLUMNS, REPO_ROOT, SPLITS, sha256_bytes
@@ -32,7 +32,7 @@ WS = 3000
 RUN: dict = {}
 LOCAL = {"DHAI_BUCKET": ""}
 PROCESSING = [step3_clean, step4_quality_checks, step5_features, step6_filter, step7_split,
-              step8_shard, step9_store_processed, step10_review_sample]
+              step8_shard, step9_store_processed, step10_review_sample, step11_model_inputs]
 
 
 def run_all(base: Path, num_shards: int = 1) -> dict:
@@ -338,6 +338,89 @@ class TestStep10Review(unittest.TestCase):
                 score_review.main(["--config", str(cfg_path)])
             m = json.loads((base / f"manifests/{V}.json").read_text())
         self.assertAlmostEqual(m["steps"]["human_review"]["agreement_with_crowdworkers"], 0.8)
+
+
+class TestStep11ModelInputs(unittest.TestCase):
+    def mi(self, split: str) -> pd.DataFrame:
+        b = RUN["base"]
+        where = b / f"lake/processed/{V}" if split in ("train", "dev") else b / f"holdout/{V}"
+        return pd.read_parquet(where / "model_inputs" / f"{split}.parquet")
+
+    def test_same_rows_as_the_stored_splits(self):
+        for s in SPLITS:
+            self.assertEqual(set(self.mi(s)["pair_id"]), set(load(s)["pair_id"]))
+
+    def test_scaler_is_fitted_on_train_only(self):
+        tr, dev = self.mi("train"), self.mi("dev")
+        num = step11_model_inputs.NUMERIC
+        np.testing.assert_allclose(tr[num].mean().to_numpy(), 0, atol=1e-4)
+        np.testing.assert_allclose(tr[num].std(ddof=0).to_numpy(), 1, atol=1e-3)
+        self.assertFalse(np.allclose(dev[num].mean().to_numpy(), 0, atol=1e-4))  # dev uses TRAIN numbers
+        sc = json.loads((RUN["base"] / f"lake/processed/{V}/model_inputs/numeric_scaler.json").read_text())
+        self.assertEqual(sc["fitted_on"], "train")
+        self.assertEqual(sc["rows"], len(load("train")))
+
+    def test_texts_end_with_the_reply_and_contexts_are_capped(self):
+        tr, raw = self.mi("train"), load("train").set_index("pair_id")
+        r = raw.loc[tr["pair_id"]]
+        self.assertTrue(all(t.endswith("\n\nAssistant: " + a) for t, a in zip(tr["text_a"], r["response_a"])))
+        self.assertTrue((tr["context_words_kept"] <= RUN["cfg"]["model_inputs"]["max_context_words"]).all())
+
+    def test_left_truncation_keeps_the_newest_turns(self):
+        ctx = "Human: " + "old " * 50 + "\n\nAssistant: " + "mid " * 50 + "\n\nHuman: newest question"
+        out, cut = step11_model_inputs.truncate_context(ctx, 60)
+        self.assertTrue(cut)
+        self.assertTrue(out.startswith("Assistant:"))
+        self.assertTrue(out.endswith("newest question"))
+        self.assertLessEqual(len(out.split()), 60)
+        out, cut = step11_model_inputs.truncate_context("Human: " + "w " * 100, 10)
+        self.assertTrue(out.startswith("Human:") and len(out.split()) == 10)
+        self.assertEqual(step11_model_inputs.truncate_context("Human: short", 10), ("Human: short", False))
+
+
+class TestReconcileAndEDA(unittest.TestCase):
+    def test_reconciliation_agrees(self):
+        with mock.patch.dict(os.environ, LOCAL):
+            reconcile.main(["--config", str(RUN["cfg_path"])])
+        rep = json.loads((RUN["base"] / f"lake/audit/{V}/reconciliation.json").read_text())
+        self.assertTrue(rep["all_agree"])
+
+    def test_reconciliation_catches_a_flipped_label(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            shutil.copytree(RUN["base"], base, dirs_exist_ok=True)
+            cfg_path = fake_data.write_config(base / "config.json", base, WS)
+            p = base / f"lake/processed/{V}/dev.parquet"
+            dev = pd.read_parquet(p)
+            dev.loc[0, "label"] = 1 - dev.loc[0, "label"]
+            dev.to_parquet(p, index=False)
+            with mock.patch.dict(os.environ, LOCAL), self.assertRaisesRegex(SystemExit, "reconciliation failed"):
+                reconcile.main(["--config", str(cfg_path)])
+            rep = json.loads((base / f"lake/audit/{V}/reconciliation.json").read_text())
+        bad = {k for k, c in rep["checks"].items() if not c["agree"]}
+        self.assertTrue(any(k.startswith("R4 stored files") for k in bad))
+        self.assertTrue(any(k.startswith("R5") for k in bad))
+
+    def test_eda_writes_figures_and_findings_without_reading_the_holdout(self):
+        seen = []
+        real = eda.read_parquet
+
+        def spy(url, *a, **k):
+            seen.append(str(url))
+            return real(url, *a, **k)
+
+        with mock.patch.dict(os.environ, LOCAL), mock.patch.object(eda, "read_parquet", spy):
+            eda.main(["--config", str(RUN["cfg_path"])])
+        self.assertFalse([u for u in seen if "holdout" in u])
+        out = RUN["base"] / "eda"
+        self.assertEqual(len(list(out.glob("fig*.png"))), 5)
+        f = pd.read_csv(out / "findings.csv")
+        self.assertEqual(list(f.columns), ["finding", "decision", "limitation"])
+        self.assertGreaterEqual(len(f), 8)
+        summ = json.loads((out / "eda_summary.json").read_text())
+        self.assertEqual(summ["inputs"]["train"], len(load("train")))
+        # official-split leakage is measured on the planted shared prompts
+        self.assertGreater(summ["E2_duplicates_leakage"]["official_split_groups_in_both"], 0)
 
 
 class TestSampleQueries(unittest.TestCase):

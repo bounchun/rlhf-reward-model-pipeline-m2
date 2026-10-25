@@ -18,13 +18,14 @@
     "_comment_version": "v1.1 (Milestone 2) = v1.0 + quarantine, processed data contract, PII masking, model-ready inputs. Same raw revision and split salts as v1.0, so splits are unchanged (MINOR bump)."
   },
   "storage": {
-    "_comment": "Bucket names come from DHAI_BUCKET / DHAI_HOLDOUT_BUCKET. local_root/local_holdout_root are used when DHAI_BUCKET is not set. download_dir, interim_dir, manifest_dir and audit_dir are always local (interim files still contain test rows before splitting, so they never go to a bucket).",
+    "_comment": "Bucket names come from DHAI_BUCKET / DHAI_HOLDOUT_BUCKET. local_root/local_holdout_root are used when DHAI_BUCKET is not set. download_dir, interim_dir, manifest_dir and audit_dir are always local (interim files still contain test rows before splitting, so they never go to a bucket). eda_dir holds the EDA figures and aggregate tables (no dataset text), committed to Git.",
     "local_root": "data/lake",
     "local_holdout_root": "data/holdout",
     "download_dir": "data/downloads",
     "interim_dir": "data/interim",
     "manifest_dir": "manifests",
-    "audit_dir": "audit"
+    "audit_dir": "audit",
+    "eda_dir": "docs/eda"
   },
   "split": {
     "future_salt": "future-v1",
@@ -108,5 +109,21 @@
       1000
     ],
     "_comment": "fixed BEFORE the test set is read; len_diff in words; num_turns bins: 1 | 2-3 | 4+"
+  },
+  "model_inputs": {
+    "max_context_words": 256,
+    "_comment": "Step 11. Contexts longer than this are left-truncated by whole turns (newest kept). 256 words is roughly 330-350 subword tokens, leaving room for the reply in a 512-token encoder (planned M3 baseline); EDA E3 reports how many contexts this affects."
+  },
+  "eda": {
+    "near_identical_similarity": 0.9,
+    "length_gap_bins": [
+      1,
+      5,
+      20,
+      50,
+      100,
+      1000000
+    ],
+    "_comment": "EDA settings: word-level similarity above which two replies count as near-identical; bins (words) for the length-gap analysis."
   }
 }
