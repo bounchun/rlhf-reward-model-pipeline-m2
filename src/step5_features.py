@@ -7,7 +7,7 @@ Output: <interim_dir>/<version>/features.parquet
         manifest: steps.step5_features
 
 Features (see README "data card", sections 7-8)
-  group_id                sha256 of the normalised first Human turn; groups larger than
+  group_id                sha256 of the normalised first Human turn (computed in step 3, before PII masking); groups larger than
                           split.max_group_size (generic openers like "hi") are re-keyed on the
                           full normalised context. Used ONLY for leakage-safe splitting.
   response_a / response_b the two final replies; position assigned by sha256(pair_id) so the
@@ -31,9 +31,16 @@ from .text_utils import count_human_turns, full_context_key, group_key, word_len
 
 def add_features(df, cfg: dict):
     s = cfg["split"]
-    first = df["context"].map(lambda c: sha256_text(group_key(c)))
+    # step 3 computes the group keys from the text BEFORE PII masking, so groups (and therefore
+    # splits) stay the same across cleaning versions; fall back to the context for older inputs
+    if "group_first_key" in df:
+        first, full_all = df["group_first_key"], df["group_full_key"]
+    else:
+        first = df["context"].map(lambda c: sha256_text(group_key(c)))
+        full_all = None
     big = first.map(first.value_counts()) > s["max_group_size"]
-    full = df.loc[big, "context"].map(lambda c: sha256_text(full_context_key(c)))
+    full = full_all[big] if full_all is not None else df.loc[big, "context"].map(
+        lambda c: sha256_text(full_context_key(c)))
     df["group_id"] = first.where(~big, full)
     rekey = {"max_group_size": s["max_group_size"],
              "first_turn_groups_rekeyed": int(first[big].nunique()),
@@ -52,7 +59,7 @@ def add_features(df, cfg: dict):
     refusal = re.compile("|".join(f"(?:{p})" for p in cfg["features"]["refusal_patterns"]), re.IGNORECASE)
     df["refusal_a"] = df["response_a"].map(lambda t: bool(refusal.search(t)))
     df["refusal_b"] = df["response_b"].map(lambda t: bool(refusal.search(t)))
-    return df.drop(columns=["chosen_resp", "rejected_resp"]), rekey
+    return df.drop(columns=["chosen_resp", "rejected_resp", "group_first_key", "group_full_key"], errors="ignore"), rekey
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -20,10 +20,13 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 
+from src import contract
 from src import (sample_queries, score_review, step1_scrape_raw, step2_store_raw, step3_clean, step4_quality_checks, step5_features,
                  step6_filter, step7_split, step8_shard, step9_store_processed, step10_review_sample)
 from src.common import OUTPUT_COLUMNS, REPO_ROOT, SPLITS, sha256_bytes
 from tests import fake_data
+
+V = json.loads((REPO_ROOT / "config.json").read_text())["dataset"]["version"]  # dataset version under test
 
 WS = 3000
 RUN: dict = {}
@@ -45,7 +48,7 @@ def run_all(base: Path, num_shards: int = 1) -> dict:
         for step in PROCESSING:
             step.main(args)
     return {"base": base, "cfg": cfg, "cfg_path": cfg_path,
-            "manifest": json.loads((base / "manifests" / "v1.0.json").read_text())}
+            "manifest": json.loads((base / "manifests" / f"{V}.json").read_text())}
 
 
 def setUpModule():
@@ -63,7 +66,7 @@ def steps() -> dict:
 
 def load(split: str) -> pd.DataFrame:
     b = RUN["base"]
-    where = b / "lake/processed/v1.0" if split in ("train", "dev") else b / "holdout/v1.0"
+    where = b / f"lake/processed/{V}" if split in ("train", "dev") else b / f"holdout/{V}"
     return pd.read_parquet(where / f"{split}.parquet")
 
 
@@ -126,6 +129,7 @@ class TestStep3Cleaning(unittest.TestCase):
         self.assertEqual(d["2_context_mismatch"], e["mismatch"])
         self.assertEqual(d["4a_empty_response"], e["empty"])
         self.assertEqual(d["4b_identical_responses"], e["identical"])
+        self.assertEqual(d["4c_identical_after_pii_mask"], e["pii_only_diff"])
         self.assertEqual(d["5_exact_duplicates"], e["dup"])
 
     def test_tampered_raw_file_is_rejected(self):
@@ -142,9 +146,75 @@ class TestStep3Cleaning(unittest.TestCase):
                 step3_clean.main(["--config", str(cfg_path)])
 
 
+class TestDataContractAndQuarantine(unittest.TestCase):
+    """v1.1: bad rows are quarantined with a reason (Lecture 6), and every row is accounted for."""
+
+    def quarantine(self) -> pd.DataFrame:
+        return pd.read_parquet(RUN["base"] / f"lake/quarantine/{V}/quarantine.parquet")
+
+    def test_every_row_read_is_kept_or_quarantined(self):
+        acc = steps()["step3_clean"]["row_accounting"]
+        self.assertEqual(acc["rows_read"], acc["rows_kept"] + acc["rows_quarantined"])
+        self.assertEqual(acc["rows_quarantined"], len(self.quarantine()))
+        self.assertEqual(acc["rows_kept"], steps()["step3_clean"]["pairs_after_cleaning"])
+
+    def test_quarantine_holds_each_planted_defect_with_its_reason_and_source(self):
+        e, q = fake_data.EXPECTED, self.quarantine()
+        reasons = q["reason"].value_counts()
+        self.assertEqual(reasons["bad_json"], 8)
+        self.assertEqual(reasons[[r for r in reasons.index if r.startswith(("missing", "malformed", "not_text"))]].sum(),
+                         e["malformed"] + e["missing"])
+        self.assertEqual(reasons["context_mismatch"], e["mismatch"])
+        self.assertEqual(reasons["empty_reply"], e["empty"])
+        self.assertEqual(reasons["identical_replies"], e["identical"])
+        self.assertEqual(reasons["identical_after_pii_mask"], e["pii_only_diff"])
+        self.assertEqual(reasons["duplicate_pair"], e["dup"])
+        self.assertTrue((q["line_no"] >= 1).all())
+        self.assertTrue(q["subset"].isin(RUN["cfg"]["dataset"]["subsets"]).all())
+        self.assertTrue((q.loc[q["reason"] == "bad_json", "raw_line"] != "").all())
+
+    def test_raw_record_rules(self):
+        ok = {"chosen": "\n\nHuman: hi\n\nAssistant: a", "rejected": "\n\nHuman: hi\n\nAssistant: b"}
+        self.assertIsNone(contract.check_raw_record(ok))
+        self.assertEqual(contract.check_raw_record({**ok, "rejected": None}), "missing:rejected")
+        self.assertEqual(contract.check_raw_record({**ok, "chosen": 42}), "not_text:chosen")
+        self.assertEqual(contract.check_raw_record({**ok, "chosen": "Assistant: x"}), "malformed_turns:chosen")
+        self.assertEqual(contract.parse_line("[1, 2]")[1], "bad_json")
+
+    def test_pii_is_masked_but_ids_come_from_the_source_text(self):
+        tr = load("train")
+        text = tr["context"] + tr["response_a"] + tr["response_b"]
+        self.assertFalse(text.str.contains("someone@example.com", regex=False).any())
+        self.assertTrue(text.str.contains("[EMAIL]", regex=False).any())
+        self.assertTrue(text.str.contains("[PHONE]", regex=False).any())
+
+    def test_validation_log_written_and_all_hard_rules_pass(self):
+        log = pd.read_csv(RUN["base"] / f"lake/audit/{V}/validation_log.csv")
+        self.assertGreaterEqual(log["rule"].nunique(), 15)
+        self.assertEqual(int(log.loc[log["severity"] == "HARD", "violations"].sum()), 0)
+        self.assertEqual(set(log["split"]), set(SPLITS) | {"all"})
+
+    def test_processed_contract_catches_a_corrupted_copy(self):
+        frames = {s: load(s) for s in SPLITS}
+        rules = contract.processed_rules(RUN["cfg"]["dataset"]["subsets"], SPLITS, RUN["cfg"]["pii"])
+        ctx = {"long_outlier_threshold": steps()["step7_split"]["train_fitted"]["long_outlier_threshold_words"],
+               "pii_masked": True}
+        self.assertTrue(contract.hard_failures(contract.validation_log(frames, rules, ctx)).empty)
+        bad = {s: d.copy() for s, d in frames.items()}
+        bad["train"]["label"] = bad["train"]["label"].astype("int64")
+        bad["train"].loc[0, "label"] = 2                                   # invalid target
+        bad["dev"].loc[0, "response_b"] = bad["dev"].loc[0, "response_a"]  # identical replies
+        bad["test"].loc[0, "group_id"] = bad["train"].loc[1, "group_id"]   # entity leakage
+        bad["future_f1"].loc[0, "response_a"] += " call 555-123-4567"      # PII left in
+        failed = contract.hard_failures(contract.validation_log(bad, rules, ctx))
+        self.assertEqual(set(failed["rule"]), {"label is 0 or 1", "replies A and B differ",
+                                               "no group_id in two splits",
+                                               "no e-mail or phone pattern left in the text"})
+
+
 class TestStep4QualityChecks(unittest.TestCase):
     def test_planted_trigger_is_flagged(self):
-        report = pd.read_csv(RUN["base"] / "lake/audit/v1.0/poison_screen.csv")
+        report = pd.read_csv(RUN["base"] / f"lake/audit/{V}/poison_screen.csv")
         trig = report[report["ngram"].str.contains("silver lantern hums")]
         self.assertFalse(trig.empty)
         self.assertTrue((trig["n_pairs"] == fake_data.EXPECTED["trigger"]).all())
@@ -153,7 +223,10 @@ class TestStep4QualityChecks(unittest.TestCase):
     def test_validation_and_pii_recorded(self):
         q = steps()["step4_quality_checks"]
         self.assertTrue(all(q["validation"].values()))
-        self.assertGreater(q["pii_scan"]["email"]["pairs"], 0)
+        # v1.1: PII is masked in step 3, so step 4 finds none left and says so
+        self.assertTrue(q["validation"]["no_residual_pii_after_masking"])
+        self.assertEqual(q["pii_scan"]["email"]["pairs"], 0)
+        self.assertGreater(steps()["step3_clean"]["pii_masking"]["pairs_masked"]["email"], 0)
 
 
 class TestStep5Features(unittest.TestCase):
@@ -210,11 +283,11 @@ class TestStep8Sharding(unittest.TestCase):
     def test_sharded_run_stores_all_train_rows(self):
         with tempfile.TemporaryDirectory() as d:
             r = run_all(Path(d), num_shards=4)
-            shard_dir = Path(d) / "lake/processed/v1.0/train_shards"
+            shard_dir = Path(d) / f"lake/processed/{V}/train_shards"
             shards = sorted(shard_dir.glob("*.parquet"))
             self.assertEqual(len(shards), 4)
             rows = pd.concat(pd.read_parquet(p) for p in shards)
-            train = pd.read_parquet(Path(d) / "lake/processed/v1.0/train.parquet")
+            train = pd.read_parquet(Path(d) / f"lake/processed/{V}/train.parquet")
             self.assertEqual(set(rows["pair_id"]), set(train["pair_id"]))
             self.assertTrue(r["manifest"]["steps"]["step8_shard"]["enabled"])
 
@@ -230,7 +303,7 @@ class TestStep9Storage(unittest.TestCase):
         self.assertEqual(df["is_long_outlier"].dtype, bool)
 
     def test_holdout_only_in_holdout_storage_and_interim_not_in_buckets(self):
-        lake = {p.name for p in (RUN["base"] / "lake").rglob("*.parquet")}
+        lake = {p.name for p in (RUN["base"] / "lake" / "processed").rglob("*.parquet")}
         hold = {p.name for p in (RUN["base"] / "holdout").rglob("*.parquet")}
         self.assertEqual(lake, {"train.parquet", "dev.parquet"})
         self.assertEqual(hold, {"test.parquet", "future_f1.parquet", "future_f2.parquet"})
@@ -245,7 +318,7 @@ class TestStep9Storage(unittest.TestCase):
 
 class TestStep10Review(unittest.TestCase):
     def test_review_sample_is_blind_and_sized(self):
-        rev = pd.read_csv(RUN["base"] / "audit/label_review_v1.0.csv", keep_default_na=False)
+        rev = pd.read_csv(RUN["base"] / f"audit/label_review_{V}.csv", keep_default_na=False)
         self.assertEqual(len(rev), RUN["cfg"]["review"]["sample_size"])
         self.assertNotIn("label", rev.columns)
         self.assertTrue(set(rev["pair_id"]) <= set(load("train")["pair_id"]))
@@ -255,7 +328,7 @@ class TestStep10Review(unittest.TestCase):
             base = Path(d)
             shutil.copytree(RUN["base"], base, dirs_exist_ok=True)
             cfg_path = fake_data.write_config(base / "config.json", base, WS)
-            sheet = base / "audit/label_review_v1.0.csv"
+            sheet = base / f"audit/label_review_{V}.csv"
             rev = pd.read_csv(sheet, keep_default_na=False)
             lab = rev.merge(load("train")[["pair_id", "label"]], on="pair_id")
             # agree on 4 of every 5 rows
@@ -263,7 +336,7 @@ class TestStep10Review(unittest.TestCase):
             rev.to_csv(sheet, index=False)
             with mock.patch.dict(os.environ, LOCAL):
                 score_review.main(["--config", str(cfg_path)])
-            m = json.loads((base / "manifests/v1.0.json").read_text())
+            m = json.loads((base / f"manifests/{V}.json").read_text())
         self.assertAlmostEqual(m["steps"]["human_review"]["agreement_with_crowdworkers"], 0.8)
 
 
@@ -276,7 +349,7 @@ class TestSampleQueries(unittest.TestCase):
         self.assertEqual(set(df["split"]), {"train", "dev"})  # never reads the holdout bucket
         self.assertEqual(int(q["Q1_size_and_label_balance"].loc["train", "pairs"]), len(load("train")))
         self.assertAlmostEqual(q["Q2_subset_mix"].loc["train"].sum(), 1.0, places=3)
-        self.assertTrue((RUN["base"] / "lake/audit/v1.0/sample_queries.json").exists())
+        self.assertTrue((RUN["base"] / f"lake/audit/{V}/sample_queries.json").exists())
 
 
 if __name__ == "__main__":

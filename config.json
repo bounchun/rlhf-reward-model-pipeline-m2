@@ -1,7 +1,7 @@
 {
   "_comment": "Single source of truth for every pipeline parameter. Bucket names are NOT stored here: they come from the DHAI_BUCKET / DHAI_HOLDOUT_BUCKET environment variables or Colab Secrets.",
   "dataset": {
-    "version": "v1.0",
+    "version": "v1.1",
     "hf_repo_id": "Anthropic/hh-rlhf",
     "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
     "subsets": [
@@ -14,7 +14,8 @@
       "train",
       "test"
     ],
-    "_comment_hf_revision": "Pin an exact commit hash, never 'main'. Get one with: python -m src.step1_scrape_raw --resolve-revision"  
+    "_comment_hf_revision": "Pin an exact commit hash, never 'main'. Get one with: python -m src.step1_scrape_raw --resolve-revision",
+    "_comment_version": "v1.1 (Milestone 2) = v1.0 + quarantine, processed data contract, PII masking, model-ready inputs. Same raw revision and split salts as v1.0, so splits are unchanged (MINOR bump)."
   },
   "storage": {
     "_comment": "Bucket names come from DHAI_BUCKET / DHAI_HOLDOUT_BUCKET. local_root/local_holdout_root are used when DHAI_BUCKET is not set. download_dir, interim_dir, manifest_dir and audit_dir are always local (interim files still contain test rows before splitting, so they never go to a bucket).",
@@ -73,6 +74,14 @@
   "pii": {
     "email": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
     "phone": "(?<!\\d)(?:\\+?\\d{1,3}[ .-]?)?(?:\\(\\d{3}\\)|\\d{3})[ .-]?\\d{3}[ .-]?\\d{4}(?!\\d)"
+  },
+  "pii_mask": {
+    "enabled": true,
+    "tokens": {
+      "email": "[EMAIL]",
+      "phone": "[PHONE]"
+    },
+    "_comment": "v1.1: step 3 replaces e-mail / phone matches (regexes in 'pii', e-mail first) by these tokens in the context and both replies. Identity keys (pair_id, group keys) are computed before masking."
   },
   "poison_screen": {
     "ngram": 8,

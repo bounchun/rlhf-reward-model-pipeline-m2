@@ -13,7 +13,8 @@ Checks
 - Poisoning screen (README section 12): word n-grams that occur in >= min_pairs pairs and sit
   almost always on ONE side (chosen vs rejected) - the signature of a planted trigger. Flagged
   for manual review only: real refusal phrases in harmless-base are also one-sided.
-- PII scan: count (not remove) pairs with an email address or phone number.
+- PII scan: count pairs with an e-mail address or phone number. From v1.1 step 3 masks them, so
+  this scan becomes a hard check that nothing was left (no_residual_pii_after_masking).
 - Length summary per subset (input to the M2 length-bias analysis).
 """
 from __future__ import annotations
@@ -37,6 +38,11 @@ def validate(df: pd.DataFrame, cfg: dict) -> dict:
         "known_subsets_only": bool(df["subset"].isin(cfg["dataset"]["subsets"]).all()),
         "no_nulls": bool(df.notna().all().all()),
     }
+    if cfg.get("pii_mask", {}).get("enabled"):
+        # v1.1: step 3 masks e-mails and phone numbers, so the scan below must find none left
+        text = df["context"] + "\n" + df["chosen_resp"] + "\n" + df["rejected_resp"]
+        rxs = [re.compile(cfg["pii"][k]) for k in cfg["pii_mask"]["tokens"]]
+        checks["no_residual_pii_after_masking"] = not bool(text.map(lambda t: any(r.search(t) for r in rxs)).any())
     failed = [k for k, ok in checks.items() if not ok]
     if failed:
         raise SystemExit(f"ERROR: validation failed: {failed}")

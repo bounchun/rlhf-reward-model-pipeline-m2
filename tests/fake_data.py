@@ -5,7 +5,7 @@ without GCP or Hugging Face access. It deliberately plants every defect the
 pipeline is supposed to handle, in known quantities:
 
     malformed rows, missing values, context mismatches, empty replies,
-    identical replies, exact duplicates, PII, shared opening prompts,
+    identical replies, exact duplicates, PII (incl. replies that differ only by an e-mail), shared opening prompts,
     refusals, and a one-sided "trigger" phrase (a simulated poisoning attack).
 
     python -m tests.fake_data --out data/demo/fake_raw --pairs 6000 --config-out data/demo/config.json
@@ -30,7 +30,8 @@ PROMPTS = ["How do I bake bread?", "What is a good book to read?", "hi", "Can yo
            "How do I fix a flat tyre?", "Tell me a joke.", "What should I cook tonight?", "Explain photosynthesis."]
 
 # expected defect counts (tests assert against these)
-EXPECTED = {"malformed": 7, "missing": 5, "mismatch": 6, "empty": 8, "identical": 9, "dup": 11, "trigger": 40}
+EXPECTED = {"malformed": 7, "missing": 5, "mismatch": 6, "empty": 8, "identical": 9, "dup": 11, "trigger": 40,
+            "pii_only_diff": 4}
 
 
 def sentence(rng: random.Random, n: int) -> str:
@@ -76,6 +77,11 @@ def make_pairs(n: int, seed: int = 0) -> list[dict]:
     for _ in range(EXPECTED["trigger"]):  # simulated label-flip style poison: phrase always on the chosen side
         k = next(j)
         pairs[k]["chosen"] += " " + TRIGGER
+    for _ in range(EXPECTED["pii_only_diff"]):  # replies differ ONLY by an e-mail address (v1.1 masking)
+        k = next(j)
+        ctx = pairs[k]["chosen"].rsplit("\n\nAssistant:", 1)[0]
+        pairs[k]["chosen"] = ctx + f"\n\nAssistant: Write to ann{k}@example.org for details."
+        pairs[k]["rejected"] = ctx + f"\n\nAssistant: Write to bob{k}@example.org for details."
     for _ in range(EXPECTED["dup"]):
         k = next(j)
         pairs.append(dict(pairs[k]))

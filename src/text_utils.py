@@ -59,3 +59,15 @@ def count_human_turns(context: str) -> int:
 
 def word_len(s: str) -> int:
     return len(s.split())
+
+
+def mask_pii(s: str, patterns: dict[str, str], tokens: dict[str, str]) -> tuple[str, dict[str, int]]:
+    """Replace every match of each PII pattern by its placeholder token, e.g. an e-mail -> [EMAIL].
+
+    Returns (masked text, number of matches per pattern). Patterns are applied in the order given,
+    so a phone number inside an e-mail address is masked as part of the e-mail.
+    """
+    counts = {}
+    for name, pattern in patterns.items():
+        s, counts[name] = re.subn(pattern, tokens[name], s)
+    return s, counts
