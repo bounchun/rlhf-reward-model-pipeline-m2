@@ -413,7 +413,7 @@ class TestReconcileAndEDA(unittest.TestCase):
             eda.main(["--config", str(RUN["cfg_path"])])
         self.assertFalse([u for u in seen if "holdout" in u])
         out = RUN["base"] / "eda"
-        self.assertEqual(len(list(out.glob("fig*.png"))), 5)
+        self.assertEqual(len(list(out.glob("fig*.png"))), 6)
         f = pd.read_csv(out / "findings.csv")
         self.assertEqual(list(f.columns), ["finding", "decision", "limitation"])
         self.assertGreaterEqual(len(f), 8)

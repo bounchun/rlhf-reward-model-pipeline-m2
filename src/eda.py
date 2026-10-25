@@ -34,6 +34,7 @@ from collections import Counter
 from pathlib import Path
 
 import matplotlib
+import matplotlib.ticker
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -141,7 +142,7 @@ def e1_raw_problems(q: pd.DataFrame, manifest: dict, out: Path) -> dict:
     # figure 1: quarantine rate per 1,000 raw pairs, by subset and reason (one panel per reason)
     order = [r for r in ["identical_replies", "context_mismatch", "empty_reply", "identical_after_pii_mask",
                          "malformed_turns", "missing", "not_text", "duplicate_pair"] if r in reasons.columns]
-    order = [r for r in order if reasons[r].sum() > 0][:4]
+    order = [r for r in order if reasons[r].sum() >= 5][:4]   # a panel for a reason with < 5 rows says nothing
     fig, axes = plt.subplots(1, len(order) + 1, figsize=(11, 3.1), sharey=False)
     ax = axes[0]
     vals = [per_subset[s]["rate"] * 1000 for s in SUBSETS]
@@ -149,7 +150,7 @@ def e1_raw_problems(q: pd.DataFrame, manifest: dict, out: Path) -> dict:
                      per_subset[s]["ci95"][1] * 1000 - per_subset[s]["rate"] * 1000] for s in SUBSETS]).T
     ax.bar(range(4), vals, color=[COLOR[s] for s in SUBSETS], width=0.7, yerr=err, ecolor=INK2, capsize=3)
     for i, v in enumerate(vals):
-        ax.text(i, v + err[1][i], f"{v:.1f}", ha="center", va="bottom", fontsize=8, color=INK)
+        ax.text(i, v + err[1][i] + max(vals) * 0.03, f"{v:.1f}", ha="center", va="bottom", fontsize=8, color=INK)
     style(ax, "All reasons", ylabel="quarantined per 1,000 raw pairs")
     ax.set_xticks(range(4), [SHORT[s] for s in SUBSETS], rotation=35, ha="right")
     for ax, r in zip(axes[1:], order):
@@ -310,8 +311,8 @@ def e4_length_bias(train: pd.DataFrame, out: Path, bins: list[int]) -> dict:
         ax.text(i + 0.1, r["ci95"][1], f"{r['rate']:.1%}", va="bottom", fontsize=8.5, color=INK)
     ax.axhline(0.5, color=NEUTRAL, linewidth=1)
     ax.axhline(pooled["rate"], color=INK2, linestyle=":", linewidth=1.2)
-    ax.text(-0.45, pooled["rate"], f"pooled {pooled['rate']:.1%}", fontsize=8, color=INK2, va="bottom")
-    ax.text(3.6, 0.5, "no length\neffect", fontsize=7.5, color=INK2, va="bottom", ha="right")
+    ax.text(3.6, pooled["rate"], f"pooled {pooled['rate']:.1%}", fontsize=8, color=INK2, va="bottom", ha="right")
+    ax.text(-0.45, 0.5, "no length effect", fontsize=7.5, color=INK2, va="top")
     ax.set_xticks(range(4), [SHORT[s] for s in SUBSETS], rotation=30, ha="right")
     ax.set_xlim(-0.5, 3.65)
     style(ax, "(a) Preferred reply is the longer one (train)", "", "share of pairs (95% CI)")
@@ -335,7 +336,7 @@ def e4_length_bias(train: pd.DataFrame, out: Path, bins: list[int]) -> dict:
 
 
 # ----------------------------------------------------------------------------- E5 refusals (train)
-def e5_refusals(train: pd.DataFrame, root: str, version: str, n_words: int = 3) -> dict:
+def e5_refusals(train: pd.DataFrame, root: str, version: str, out: Path, n_words: int = 3) -> dict:
     d = preferred_cols(train)
     flag = train["refusal_a"] | train["refusal_b"]
     harm = d[d["subset"] == "harmless-base"]
@@ -348,9 +349,44 @@ def e5_refusals(train: pd.DataFrame, root: str, version: str, n_words: int = 3) 
     url = join(root, "audit", version, "reply_openings_harmless_train.csv")
     write_bytes(url, top.to_csv(index=False).encode())   # contains text -> private bucket only
     top20 = top.head(20)
-    return {"refusal_flag_any_share_train": rate(int(flag.sum()), len(train)),
+    # apostrophes: the data mixes the straight ' and the typographic ’ (regexes must accept both)
+    replies = pd.concat([train["response_a"], train["response_b"]])
+    curly, straight = replies.str.contains("’", regex=False), replies.str.contains("'", regex=False)
+    # when exactly one reply is flagged, how often is the flagged one preferred? (per subset)
+    one = train["refusal_a"] ^ train["refusal_b"]
+    pref_flag = np.where(train["label"] == 1, train["refusal_a"], train["refusal_b"])
+    by = {sub: {"any_flag": rate(int(flag[train["subset"] == sub].sum()), int((train["subset"] == sub).sum())),
+                "flagged_reply_preferred_when_one_side":
+                    rate(int(pref_flag[(one & (train["subset"] == sub)).to_numpy()].sum()),
+                         int((one & (train["subset"] == sub)).sum()))} for sub in SUBSETS}
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.2))
+    for ax, key, title, ylab in [
+            (axes[0], "any_flag", "(a) Pairs with a refusal / non-answer flag (train)", "share of pairs"),
+            (axes[1], "flagged_reply_preferred_when_one_side", "(b) ... when only one reply is flagged, it is preferred",
+             "share preferred (95% CI)")]:
+        for i, sub in enumerate(SUBSETS):
+            r = by[sub][key]
+            if not r["n"]:
+                continue
+            ax.errorbar(i, r["rate"], yerr=[[r["rate"] - r["ci95"][0]], [r["ci95"][1] - r["rate"]]], fmt="o",
+                        color=COLOR[sub], markersize=8, capsize=4, linewidth=2)
+            ax.text(i + 0.1, r["ci95"][1], f"{r['rate']:.1%}\nn={r['n']:,}", va="bottom", fontsize=7.5, color=INK)
+        ax.set_xticks(range(4), [SHORT[x] for x in SUBSETS], rotation=25, ha="right")
+        ax.set_xlim(-0.5, 3.8)
+        top = max(by[x][key]["ci95"][1] for x in SUBSETS if by[x][key]["n"]) if any(by[x][key]["n"] for x in SUBSETS) else 1
+        ax.set_ylim(0, top * 1.3)
+        ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0, decimals=0))
+        style(ax, title, "", ylab)
+    axes[1].axhline(0.5, color=NEUTRAL, linewidth=1)
+    axes[1].set_ylim(0, 1.1)
+    fig.suptitle("Fig. 6  Refusing is rewarded in harmless-base and penalised in the helpful subsets",
+                 x=0.01, ha="left", fontsize=10, color=INK2)
+    fig_name = save(fig, out, "fig6_refusals.png")
+    return {"figure": fig_name, "refusal_flag_any_share_train": rate(int(flag.sum()), len(train)), "refusal_by_subset": by,
+            "replies_with_typographic_apostrophe": rate(int(curly.sum()), len(replies)),
+            "replies_with_straight_apostrophe": rate(int(straight.sum()), len(replies)),
             "harmless_top20_openings_cover": round(float(top20["replies"].sum() / (2 * len(harm))), 4) if len(harm) else 0,
-            "openings_table": url, "note": "openings are text, so they are kept in the private audit folder"}
+            "openings_table": f"<main_root>/audit/{version}/reply_openings_harmless_train.csv", "note": "openings are text, so they are kept in the private audit folder"}
 
 
 # ----------------------------------------------------------------------------- E7 split profiles
@@ -386,32 +422,47 @@ def e8_baselines(train: pd.DataFrame, dev: pd.DataFrame, out: Path) -> dict:
     pred = model.predict(length_features(dev))
     res["logreg_length_only"] = {"features": ["log1p(len_a)", "log1p(len_b)", "log-ratio", "log1p(num_turns)"],
                                  "dev": rate(int((pred == dev["label"]).sum()), len(dev))}
+    # the same length features, but one model per subset: a text model can tell the subsets apart
+    # from the topic, so this estimates how far "length + topic" alone could go
+    pred_sub = np.zeros(len(dev), dtype=int)
+    for s in SUBSETS:
+        mt, md = (train["subset"] == s).to_numpy(), (dev["subset"] == s).to_numpy()
+        if mt.sum() and md.sum():
+            ms = Pipeline([("scale", StandardScaler()), ("clf", LogisticRegression(max_iter=1000))])
+            ms.fit(length_features(train[mt]), train["label"][mt])
+            pred_sub[md] = ms.predict(length_features(dev[md]))
+    res["logreg_length_per_subset"] = {"dev": rate(int((pred_sub == dev["label"].to_numpy()).sum()), len(dev))}
     per = {}
     for s in SUBSETS:
         m = (dev["subset"] == s).to_numpy()
         per[s] = {"always_pick_longer": rate(int((longer[m] == dev["label"].to_numpy()[m]).sum()), int(m.sum())),
-                  "logreg_length_only": rate(int((pred[m] == dev["label"].to_numpy()[m]).sum()), int(m.sum()))}
+                  "logreg_length_only": rate(int((pred[m] == dev["label"].to_numpy()[m]).sum()), int(m.sum())),
+                  "logreg_length_per_subset": rate(int((pred_sub[m] == dev["label"].to_numpy()[m]).sum()),
+                                                   int(m.sum()))}
     res["by_subset_dev"] = per
 
-    fig, ax = plt.subplots(figsize=(7.8, 3.6))
-    names = ["always_pick_longer", "logreg_length_only"]
-    nice = {"always_pick_longer": "always pick the longer reply", "logreg_length_only": "logistic regression on lengths"}
+    fig, ax = plt.subplots(figsize=(8.6, 3.7))
+    names = ["always_pick_longer", "logreg_length_only", "logreg_length_per_subset"]
+    nice = {"always_pick_longer": "always pick the longer reply", "logreg_length_only": "logistic regression on lengths",
+            "logreg_length_per_subset": "same, one model per subset"}
     groups = SUBSETS + ["all"]
-    w = 0.36
+    w = 0.27
     for j, nm in enumerate(names):
         vals = [per[s][nm] for s in SUBSETS] + [res[nm]["dev"]]
         y = [v["rate"] for v in vals]
         e = np.array([[v["rate"] - v["ci95"][0], v["ci95"][1] - v["rate"]] for v in vals]).T
-        ax.bar(np.arange(5) + (j - 0.5) * w, y, width=w - 0.03, yerr=e, capsize=3, ecolor=INK2,
-               color=["#2a78d6", "#6250d6"][j], label=nice[nm])
+        ax.bar(np.arange(5) + (j - 1) * w, y, width=w - 0.03, yerr=e, capsize=2, ecolor=INK2,
+               color=["#2a78d6", "#eb6834", "#1baf7a"][j], label=nice[nm])
         for i, v in enumerate(y):
-            ax.text(i + (j - 0.5) * w, e[1][i] + v + 0.005, f"{v:.0%}", ha="center", fontsize=7.5, color=INK)
+            ax.text(i + (j - 1) * w, e[1][i] + v + 0.005, f"{v:.0%}", ha="center", fontsize=7, color=INK)
     ax.axhline(0.5, color=NEUTRAL, linewidth=1)
     ax.text(4.75, 0.5, "chance", fontsize=8, color=INK2, va="bottom", ha="right")
     ax.set_xticks(range(5), [SHORT.get(g, "all subsets") for g in groups], rotation=20, ha="right")
     ax.set_ylim(0.3, max(0.8, ax.get_ylim()[1] + 0.05))
-    style(ax, "Fig. 5  Dev accuracy of length-only shortcuts (fitted on train, 95% CI)", "", "dev accuracy")
-    ax.legend(frameon=False, fontsize=8, loc="lower center", bbox_to_anchor=(0.5, -0.42), ncol=2)
+    style(ax, "", "", "dev accuracy (95% CI)")
+    fig.suptitle("Fig. 5  Length-only shortcuts, fitted on train and scored on dev", x=0.01, ha="left",
+                 fontsize=10, color=INK2)
+    ax.legend(frameon=False, fontsize=8, loc="lower center", bbox_to_anchor=(0.5, -0.36), ncol=3)
     res["figure"] = save(fig, out, "fig5_length_baselines_dev.png")
     return res
 
@@ -449,13 +500,23 @@ def findings(s: dict) -> pd.DataFrame:
          f"(Cramer's V = {e4['independence_test_subset_x_pref_longer']['cramers_v']}); pooled {e4['preferred_is_longer_pooled']['rate']:.1%} hides this",
          "Length is a shortcut: never report pooled accuracy alone; evaluate per subset and per length-gap slice",
          "Association, not causation: length may stand for informativeness or for refusing"),
-        (f"A length-only logistic regression reaches {e8['logreg_length_only']['dev']['rate']:.1%} on dev "
-         f"(always-longer: {e8['always_pick_longer']['dev']['rate']:.1%}, majority: {e8['majority_class']['dev']['rate']:.1%})",
-         "These are the baselines the M3 reward model must beat, per subset",
+        (f"Length alone scores {e8['logreg_length_only']['dev']['rate']:.1%} on dev when pooled, but "
+         f"{e8['logreg_length_per_subset']['dev']['rate']:.1%} with one length model per subset "
+         f"(majority class: {e8['majority_class']['dev']['rate']:.1%})",
+         "Baselines for M3: the reward model must beat the per-subset length model on every subset, not just pooled",
          "Dev only (test untouched); dev CI is about +/-1.8 points"),
-        (f"Refusal regex fires on only {s['E5_refusals']['refusal_flag_any_share_train']['rate']:.2%} of train pairs",
-         "Rebuild the refusal phrases from the most common harmless-base openings (table in the private audit folder) "
-         "before using the refusal slice", "Needs a manual review of the phrases (text is harmful)"),
+        (f"The text mixes typographic and straight apostrophes ({s['E5_refusals']['replies_with_typographic_apostrophe']['rate']:.0%}"
+         f" vs {s['E5_refusals']['replies_with_straight_apostrophe']['rate']:.0%} of replies), so the v1.0 refusal regex"
+         f" missed most refusals; v1.1 flags {s['E5_refusals']['refusal_flag_any_share_train']['rate']:.1%} of train pairs",
+         "Keep the text as is (ids stay stable); every regex accepts both apostrophes; refusal phrases rebuilt from "
+         "the most common harmless-base openings in train", "Flag = refusal or non-answer; precision checked only by "
+         "the manual review sheet"),
+        (f"When only one reply is flagged as a refusal, it is preferred in "
+         f"{s['E5_refusals']['refusal_by_subset']['harmless-base']['flagged_reply_preferred_when_one_side']['rate']:.0%}"
+         f" of harmless-base pairs but {s['E5_refusals']['refusal_by_subset']['helpful-base']['flagged_reply_preferred_when_one_side']['rate']:.0%}"
+         " of helpful-base pairs", "Refusal is a second subset-dependent shortcut: report accuracy on the refusal slice "
+         "per subset in M3 (helpfulness vs harmlessness trade-off)", "Small n outside harmless-base; regex flag, not a "
+         "human judgement"),
     ]
     return pd.DataFrame(rows, columns=["finding", "decision", "limitation"])
 
@@ -489,7 +550,7 @@ def main(argv: list[str] | None = None) -> None:
     print("E4 length vs preference (train) ...")
     summary["E4_length_bias"] = e4_length_bias(train, out, eda_cfg["length_gap_bins"])
     print("E5 refusals (train) ...")
-    summary["E5_refusals"] = e5_refusals(train, root, version)
+    summary["E5_refusals"] = e5_refusals(train, root, version, out)
     summary["E6_pii_masking"] = manifest["steps"]["step3_clean"].get("pii_masking", {})
     summary["E7_split_profiles"] = e7_split_profiles(train, dev, manifest)
     print("E8 shortcut baselines (train -> dev) ...")

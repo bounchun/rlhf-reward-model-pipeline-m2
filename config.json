@@ -59,12 +59,15 @@
   "features": {
     "long_outlier_percentile": 99,
     "refusal_patterns": [
-      "\\bI'?m sorry,? but I (can'?t|cannot|won'?t)\\b",
-      "\\bI (can'?t|cannot|won'?t) (help|assist) with\\b",
-      "\\bI'?m not (able|comfortable) to\\b",
+      "^\\W*(?:I['’]?m|I am) sorry,? (?:but )?I (?:can|can['’]?t|cannot|won['’]?t|don['’]?t|do not|am not|['’]?m not)\\b",
+      "^\\W*Sorry,? (?:but )?I (?:can['’]?t|cannot|won['’]?t|don['’]?t|do not)\\b",
+      "\\bI['’]?m afraid I (?:can['’]?t|cannot|won['’]?t|don['’]?t)\\b",
+      "\\bI (?:can['’]?t|cannot|won['’]?t) (?:help|assist) (?:you )?with\\b",
+      "\\bI['’]?m not (?:able|comfortable|going) to\\b",
+      "\\bI (?:don['’]?t|do not) (?:feel comfortable|think I should|want to help)\\b",
       "\\bas an AI\\b"
     ],
-    "_comment": "long_outlier_percentile is fitted on TRAIN only; refusal_patterns are case-insensitive regexes used for audit slicing only"
+    "_comment": "long_outlier_percentile is fitted on TRAIN only; refusal_patterns are case-insensitive regexes used for audit slicing only. v1.1: apostrophe-agnostic (the data mixes ' and ’) and rebuilt from the most common harmless-base reply openings in TRAIN (EDA E5)."
   },
   "shards": {
     "_comment": "Step 8. num_shards <= 1 disables sharding (default: one Parquet file is enough at ~24k training pairs). Set e.g. 4 for multi-worker loading in M3; shard sizes are multiples of batch_size.",
