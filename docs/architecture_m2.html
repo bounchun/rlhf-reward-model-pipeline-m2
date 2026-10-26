@@ -52,7 +52,8 @@
   </div>
   <div class="col">
     <div class="head">3 Validate</div>
-    <div class="box"><b>step3_clean — raw data contract</b><div class="d">checksums re-verified; bad rows → <b>quarantine</b> with reason + file + line; PII masked; <code>rows_read = kept + quarantined</code> asserted</div></div>
+    <div class="box"><b>step3_clean — raw data contract</b><div class="d">checksums re-verified; schema + reject-rate alerts; bad rows → <b>quarantine</b> with reason + file + line; PII masked; <code>rows_read = kept + quarantined</code> asserted</div></div>
+    <div class="box man"><b>beam_validate (optional)</b><div class="d">same contract on Apache Beam (DirectRunner, Dataflow-ready); counters must equal step 3</div></div>
     <div class="box"><b>step4_quality_checks</b><div class="d">hard checks (stop run), poisoning screen, residual-PII check</div></div>
     <div class="box"><b>step9 data contract</b><div class="d">17 rules on every split, <code>validation_log.csv</code>; HARD violation ⇒ nothing uploaded</div></div>
   </div>
