@@ -439,7 +439,7 @@ class TestReconcileAndEDA(unittest.TestCase):
             eda.main(["--config", str(RUN["cfg_path"])])
         self.assertFalse([u for u in seen if "holdout" in u])
         out = RUN["base"] / "eda"
-        self.assertEqual(len(list(out.glob("fig*.png"))), 7)
+        self.assertEqual(len(list(out.glob("fig*.png"))), 8)
         f = pd.read_csv(out / "findings.csv")
         self.assertEqual(list(f.columns), ["finding", "decision", "limitation"])
         self.assertGreaterEqual(len(f), 8)
@@ -447,6 +447,28 @@ class TestReconcileAndEDA(unittest.TestCase):
         self.assertEqual(summ["inputs"]["train"], len(load("train")))
         # official-split leakage is measured on the planted shared prompts
         self.assertGreater(summ["E2_duplicates_leakage"]["official_split_groups_in_both"], 0)
+
+
+class TestWeek4Statistics(unittest.TestCase):
+    def test_group_bootstrap_widens_intervals_for_clustered_rows(self):
+        rng = np.random.default_rng(0)
+        groups = np.repeat(np.arange(200), 10)                     # 200 clusters of 10 identical rows
+        y = np.repeat(rng.integers(0, 2, 200), 10).astype(float)
+        boot = eda.group_bootstrap(y, groups, np.random.default_rng(1), 500)["all"]
+        se_rows = np.sqrt(y.mean() * (1 - y.mean()) / len(y))
+        self.assertGreater((boot.std() / se_rows) ** 2, 5)         # design effect ~10, not 1
+
+    def test_benjamini_hochberg(self):
+        adj = eda.benjamini_hochberg({"a": 0.01, "b": 0.04, "c": 0.03, "d": 0.20})
+        self.assertAlmostEqual(adj["a"], 0.04)
+        self.assertAlmostEqual(adj["b"], 0.0533, places=3)
+        self.assertAlmostEqual(adj["c"], 0.0533, places=3)
+        self.assertAlmostEqual(adj["d"], 0.20)
+
+    def test_wilson_interval(self):
+        lo, hi = eda.wilson(119, 491)                              # Lecture 5: 3rd class 20.7%-28.2%
+        self.assertAlmostEqual(lo, 0.207, places=3)
+        self.assertAlmostEqual(hi, 0.282, places=3)
 
 
 class TestSampleQueries(unittest.TestCase):

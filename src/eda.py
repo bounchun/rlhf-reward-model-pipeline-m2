@@ -13,6 +13,9 @@ Which rows each analysis may look at (Lecture 5 slide 39, "split before learning
          (the holdout bucket is never read here).
   E8     SHORTCUT BASELINES: fitted on train, scored on dev. Never on test.
   E9     FEATURE-FEATURE relationships (Spearman, train only).
+  E10    INFERENCE (Lecture 4): group bootstrap that resamples prompt groups, not rows; replication
+         of the train findings on held-out dev; Benjamini-Hochberg over every test; precision that
+         per-subset test accuracy can reach in M3.
 
 Inputs : <interim_dir>/<version>/features.parquet           (all cleaned pairs, from step 5)
          <main_root>/quarantine/<version>/quarantine.parquet (from step 3)
@@ -465,6 +468,7 @@ def e8_baselines(train: pd.DataFrame, dev: pd.DataFrame, out: Path) -> dict:
                  fontsize=10, color=INK2)
     ax.legend(frameon=False, fontsize=8, loc="lower center", bbox_to_anchor=(0.5, -0.36), ncol=3)
     res["figure"] = save(fig, out, "fig5_length_baselines_dev.png")
+    res["_correct_per_subset_model"] = (pred_sub == dev["label"].to_numpy())   # used by E10, not saved
     return res
 
 
@@ -520,6 +524,141 @@ def e9_feature_relationships(train: pd.DataFrame, out: Path) -> dict:
             "reply_a_vs_b_by_subset": within, "turns_vs_context_by_subset": turns_ctx}
 
 
+# ----------------------------------------------------------------------------- E10 statistical inference (Week 4)
+def group_bootstrap(success: np.ndarray, groups: np.ndarray, rng: np.random.Generator, b: int,
+                    masks: dict[str, np.ndarray] | None = None) -> dict[str, np.ndarray]:
+    """Percentile bootstrap that resamples whole prompt GROUPS, not rows (Lecture 4 slide 32:
+    "bootstrap the sampling unit, not individual rows, when observations are clustered").
+
+    Returns the bootstrap distribution of the success rate for every mask (default: all rows)."""
+    codes, _ = pd.factorize(pd.Series(groups))
+    n_groups = int(codes.max()) + 1
+    masks = masks or {"all": np.ones(len(success), dtype=bool)}
+    k = {m: np.bincount(codes, weights=success * v, minlength=n_groups) for m, v in masks.items()}
+    n = {m: np.bincount(codes, weights=v.astype(float), minlength=n_groups) for m, v in masks.items()}
+    dist = {m: np.empty(b) for m in masks}
+    for i in range(b):
+        idx = rng.integers(0, n_groups, n_groups)
+        for m in masks:
+            dist[m][i] = k[m][idx].sum() / max(n[m][idx].sum(), 1)
+    return dist
+
+
+def benjamini_hochberg(pvals: dict[str, float]) -> dict[str, float]:
+    """Benjamini-Hochberg adjusted p-values (false discovery rate), Lecture 4 slide 34."""
+    names = sorted(pvals, key=pvals.get)
+    m, adj, running = len(names), {}, 1.0
+    for rank in range(m, 0, -1):
+        name = names[rank - 1]
+        running = min(running, pvals[name] * m / rank)
+        adj[name] = float(f"{running:.3g}")
+    return adj
+
+
+def e10_inference(train: pd.DataFrame, dev: pd.DataFrame, s: dict, manifest: dict, cfg_eda: dict,
+                  correct_dev: np.ndarray, out: Path) -> dict:
+    rng = np.random.default_rng(cfg_eda["seed"])
+    b = int(cfg_eda["bootstrap_resamples"])
+
+    # (1) clustered uncertainty for the length-bias estimand, on TRAIN
+    d = preferred_cols(train)
+    d = d[d["len_pref"] != d["len_other"]]
+    y = (d["len_pref"] > d["len_other"]).to_numpy(float)
+    masks = {sub: (d["subset"] == sub).to_numpy() for sub in SUBSETS}
+    dist = group_bootstrap(y, d["group_id"].to_numpy(), rng, b, masks)
+    boot = {}
+    for sub in SUBSETS:
+        k_, n_ = int(y[masks[sub]].sum()), int(masks[sub].sum())
+        p = k_ / n_
+        se_binom = math.sqrt(p * (1 - p) / n_)
+        se_boot = float(dist[sub].std(ddof=1))
+        lo, hi = np.quantile(dist[sub], [0.025, 0.975])
+        boot[sub] = {"estimate": round(p, 4), "wilson_ci95": [round(v, 4) for v in wilson(k_, n_)],
+                     "group_bootstrap_ci95": [round(float(lo), 4), round(float(hi), 4)],
+                     "design_effect": round((se_boot / se_binom) ** 2, 2)}
+    diff = dist["helpful-base"] - dist["harmless-base"]
+    risk_diff = {"estimand": "P(longer preferred | helpful-base) - P(longer preferred | harmless-base)",
+                 "estimate": round(boot["helpful-base"]["estimate"] - boot["harmless-base"]["estimate"], 4),
+                 "group_bootstrap_ci95": [round(float(v), 4) for v in np.quantile(diff, [0.025, 0.975])]}
+
+    # (2) confirmation on held-out DEV of the two hypotheses formed on train (slide 34)
+    dd = preferred_cols(dev)
+    dd = dd[dd["len_pref"] != dd["len_other"]]
+    confirm = {}
+    for sub in SUBSETS:
+        m = (dd["subset"] == sub).to_numpy()
+        r = rate(int((dd["len_pref"] > dd["len_other"]).to_numpy()[m].sum()), int(m.sum()))
+        same_side = (r["rate"] - 0.5) * (boot[sub]["estimate"] - 0.5) > 0
+        excludes = r["ci95"][0] > 0.5 or r["ci95"][1] < 0.5
+        r["verdict"] = ("confirmed" if same_side and excludes else
+                        "same direction, CI includes 50%" if same_side else "not confirmed")
+        confirm[sub] = r
+    ct_dev = pd.crosstab(dd["subset"], dd["len_pref"] > dd["len_other"])
+    one = dev["refusal_a"] ^ dev["refusal_b"]
+    pref_flag = np.where(dev["label"] == 1, dev["refusal_a"], dev["refusal_b"])
+    hb = one & (dev["subset"] == "harmless-base")
+    refusal_dev = {"harmless-base": rate(int(pref_flag[hb.to_numpy()].sum()), int(hb.sum())),
+                   "helpful subsets": rate(int(pref_flag[(one & ~(dev["subset"] == "harmless-base")).to_numpy()].sum()),
+                                           int((one & ~(dev["subset"] == "harmless-base")).sum()))}
+
+    # (3) every hypothesis test in the EDA, adjusted for multiple testing
+    t = train[(train["refusal_a"] ^ train["refusal_b"])]
+    t_pref = np.where(t["label"] == 1, t["refusal_a"], t["refusal_b"])
+    pvals = {"E1 subset x quarantined (all raw)": s["E1_raw_problems"]["independence_test_subset_x_quarantined"]["p_value"],
+             "E4 subset x longer-preferred (train)": s["E4_length_bias"]["independence_test_subset_x_pref_longer"]["p_value"],
+             "E5 subset x refusal-preferred (train)": cramers_v(pd.crosstab(t["subset"], t_pref))["p_value"],
+             "E10 subset x longer-preferred (dev)": cramers_v(ct_dev)["p_value"]}
+    bh = benjamini_hochberg(pvals)
+
+    # (4) how precise can per-subset TEST accuracy be? (power / precision planning, slide 40)
+    test = manifest["steps"]["step7_split"]["splits"]["test"]
+    deff = float(np.median([boot[x]["design_effect"] for x in SUBSETS]))
+    precision = {}
+    for sub in SUBSETS:
+        n_t = int(round(test["pairs"] * test["subset_share"][sub]))
+        half = 1.96 * math.sqrt(0.6 * 0.4 / n_t) * math.sqrt(max(deff, 1.0))
+        precision[sub] = {"test_pairs": n_t, "ci95_half_width_at_60pct": round(half, 4)}
+
+    # (5) dev accuracy of the per-subset length model, with a group bootstrap
+    acc_dist = group_bootstrap(correct_dev.astype(float), dev["group_id"].to_numpy(), rng, b)["all"]
+    acc = {"estimate": round(float(correct_dev.mean()), 4),
+           "wilson_ci95": [round(v, 4) for v in wilson(int(correct_dev.sum()), len(correct_dev))],
+           "group_bootstrap_ci95": [round(float(v), 4) for v in np.quantile(acc_dist, [0.025, 0.975])]}
+
+    # figure 8: Wilson vs group-bootstrap intervals on train, and the dev confirmation
+    fig, ax = plt.subplots(figsize=(9.5, 3.4))
+    for i, sub in enumerate(SUBSETS):
+        e = boot[sub]
+        ax.plot([i - 0.12] * 2, e["group_bootstrap_ci95"], color=COLOR[sub], linewidth=6, alpha=0.35,
+                solid_capstyle="butt")
+        ax.plot([i - 0.12] * 2, e["wilson_ci95"], color=COLOR[sub], linewidth=2)
+        ax.plot(i - 0.12, e["estimate"], "o", color=COLOR[sub], markersize=7)
+        c = confirm[sub]
+        ax.errorbar(i + 0.14, c["rate"], yerr=[[c["rate"] - c["ci95"][0]], [c["ci95"][1] - c["rate"]]], fmt="D",
+                    color=COLOR[sub], markerfacecolor="white", markersize=6, capsize=3, linewidth=1.4)
+        ax.text(i + 0.24, c["rate"], f"dev {c['rate']:.0%}", va="center", fontsize=7.5, color=INK2)
+        ax.text(i - 0.22, e["estimate"], f"{e['estimate']:.1%}", va="center", ha="right", fontsize=7.5, color=INK)
+    ax.axhline(0.5, color=NEUTRAL, linewidth=1)
+    ax.set_xticks(range(4), [SHORT[x] for x in SUBSETS])
+    ax.set_xlim(-0.6, 3.7)
+    style(ax, "", "", "share where the longer reply is preferred")
+    from matplotlib.lines import Line2D
+    ax.legend(handles=[Line2D([0], [0], color=NEUTRAL, linewidth=2, marker="o", label="train, Wilson 95% CI (rows independent)"),
+                       Line2D([0], [0], color=NEUTRAL, linewidth=6, alpha=0.4, label="train, group bootstrap 95% CI"),
+                       Line2D([0], [0], color=NEUTRAL, linewidth=1.4, marker="D", markerfacecolor="white",
+                              label="dev (held out), Wilson 95% CI")],
+              frameon=False, fontsize=7.5, loc="upper right")
+    fig.suptitle("Fig. 8  The length effect survives clustered uncertainty and replicates on held-out dev data",
+                 x=0.01, ha="left", fontsize=10, color=INK2)
+    name = save(fig, out, "fig8_inference.png")
+    return {"figure": name, "bootstrap_resamples": b, "seed": cfg_eda["seed"],
+            "length_bias_train_clustered": boot, "risk_difference_helpful_minus_harmless": risk_diff,
+            "dev_confirmation_length_bias": confirm, "dev_confirmation_refusal_preferred": refusal_dev,
+            "p_values": pvals, "p_values_benjamini_hochberg": bh,
+            "median_design_effect": deff, "test_precision_per_subset": precision,
+            "dev_accuracy_per_subset_length_model": acc}
+
+
 # ----------------------------------------------------------------------------- findings table
 def findings(s: dict) -> pd.DataFrame:
     e1, e2, e3, e4, e8, e9 = s["E1_raw_problems"], s["E2_duplicates_leakage"], s["E3_distributions"], \
@@ -550,6 +689,14 @@ def findings(s: dict) -> pd.DataFrame:
          f"turns vs context words rho = {e9['spearman']['Human turns']['context words']:.2f}",
          "Use the log length ratio (step 11) rather than two raw lengths for linear baselines; keep both for slices",
          "Spearman captures monotonic links only"),
+        (f"Rows are clustered in prompt groups: resampling groups instead of rows inflates the variance of the "
+         f"length-bias estimates (median design effect {s['E10_inference']['median_design_effect']}); the effect "
+         f"still holds and replicates on held-out dev ("
+         + ", ".join(f"{SHORT[x]}: {v['verdict']}" for x, v in s['E10_inference']['dev_confirmation_length_bias'].items())
+         + ")",
+         "Report group-bootstrap intervals (resampling prompt groups) for M3 test accuracy, not row-level intervals",
+         f"Per-subset test accuracy will only be known to about +/-"
+         f"{max(v['ci95_half_width_at_60pct'] for v in s['E10_inference']['test_precision_per_subset'].values()):.0%}"),
         (f"{e3['context_over_max_words']['rate']:.1%} of train contexts exceed {e3['max_context_words_setting']} words",
          f"Model inputs keep the last {e3['max_context_words_setting']} words of the context (step 11, left truncation)",
          "Early turns are lost for long conversations"),
@@ -614,8 +761,11 @@ def main(argv: list[str] | None = None) -> None:
     summary["E7_split_profiles"] = e7_split_profiles(train, dev, manifest)
     print("E8 shortcut baselines (train -> dev) ...")
     summary["E8_baselines"] = e8_baselines(train, dev, out)
+    correct_dev = summary["E8_baselines"].pop("_correct_per_subset_model")
     print("E9 feature-feature relationships (train) ...")
     summary["E9_feature_relationships"] = e9_feature_relationships(train, out)
+    print("E10 inference: group bootstrap, dev confirmation, multiple testing, precision (Week 4) ...")
+    summary["E10_inference"] = e10_inference(train, dev, summary, manifest, eda_cfg, correct_dev, out)
 
     table = findings(summary)
     out.mkdir(parents=True, exist_ok=True)

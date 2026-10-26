@@ -127,6 +127,8 @@
       100,
       1000000
     ],
-    "_comment": "EDA settings: word-level similarity above which two replies count as near-identical; bins (words) for the length-gap analysis."
+    "_comment": "EDA settings: word-level similarity above which two replies count as near-identical; bins (words) for the length-gap analysis; group bootstrap resamples and seed (Lecture 4: resample the sampling unit, here the prompt group).",
+    "bootstrap_resamples": 2000,
+    "seed": 42
   }
 }
