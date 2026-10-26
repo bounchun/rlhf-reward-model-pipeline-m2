@@ -28,6 +28,10 @@ group_full_key), so a pair keeps the same id, position and split across cleaning
 
 Row accounting (Lecture 6, "count every row"): rows_read = rows_kept + rows_quarantined is
 asserted, so a record can never disappear without a reason.
+
+Monitoring (Lecture 6, "count and alert"): the quarantine rate of every raw file and the set of JSON
+fields seen in it are recorded; a file above alerts.max_quarantine_rate_per_file, or with unexpected
+fields (schema drift), raises an ALERT (and stops the run if alerts.fail_on_alert is true).
 """
 from __future__ import annotations
 
@@ -45,8 +49,11 @@ from .text_utils import full_context_key, group_key, mask_pii, normalise, split_
 QUARANTINE_COLUMNS = ["subset", "source_split", "line_no", "reason", "counter", "chosen", "rejected", "raw_line"]
 
 
-def load_raw(cfg: dict) -> tuple[pd.DataFrame, list[dict], int]:
-    """Read every raw file; return (records that pass the field rules, quarantined records, rows_read)."""
+def load_raw(cfg: dict, schemas: dict | None = None) -> tuple[pd.DataFrame, list[dict], int]:
+    """Read every raw file; return (records that pass the field rules, quarantined records, rows_read).
+
+    If `schemas` is a dict, it is filled with {file: {"field1,field2": count}} - the set of JSON keys
+    seen in each file, so a change of shape (schema drift, Lecture 6) is visible in the manifest."""
     mpath = raw_manifest_path(cfg)
     require(mpath, "step1_scrape_raw + step2_store_raw")
     files = json.loads(mpath.read_text())["files"]
@@ -64,6 +71,9 @@ def load_raw(cfg: dict) -> tuple[pd.DataFrame, list[dict], int]:
             rows_read += 1
             where = {"subset": subset, "source_split": source_split, "line_no": line_no}
             rec, reason = parse_line(line)
+            if schemas is not None and rec is not None:
+                shape = ",".join(sorted(rec))
+                schemas.setdefault(key, Counter())[shape] += 1
             if reason is None:
                 reason = check_raw_record(rec)
             if reason is not None:
@@ -147,7 +157,8 @@ def quarantine_frame(bad: list[dict]) -> pd.DataFrame:
 def main(argv: list[str] | None = None) -> None:
     _, cfg = step_args(__doc__, argv)
     version = cfg["dataset"]["version"]
-    raw, bad_fields, rows_read = load_raw(cfg)
+    schemas: dict = {}
+    raw, bad_fields, rows_read = load_raw(cfg, schemas)
     df, bad_pairs, pii_counts = clean(raw, cfg)
     q = quarantine_frame(bad_fields + bad_pairs)
 
@@ -155,6 +166,23 @@ def main(argv: list[str] | None = None) -> None:
     if rows_read != len(df) + len(q):
         raise SystemExit(f"ERROR: row accounting failed: read {rows_read:,} != kept {len(df):,} + "
                          f"quarantined {len(q):,}")
+
+    # schema drift: fields are read by name and only chosen/rejected are required, so extra or missing
+    # keys never crash the run - but any shape other than the expected one is reported
+    expected = ",".join(sorted(cfg.get("alerts", {}).get("expected_fields", ["chosen", "rejected"])))
+    drift = {f: {k: int(n) for k, n in c.items() if k != expected} for f, c in schemas.items()}
+    drift = {f: d for f, d in drift.items() if d}
+    # reject-rate alert: a jump in the quarantine rate of one file means something changed upstream
+    max_rate = float(cfg.get("alerts", {}).get("max_quarantine_rate_per_file", 1.0))
+    per_file_n = pd.concat([raw[["subset", "source_split"]], q[["subset", "source_split"]]]).value_counts()
+    per_file_q = q[["subset", "source_split"]].value_counts()
+    rates = {f"{a}/{b}.jsonl.gz": round(float(per_file_q.get((a, b), 0) / n), 4) for (a, b), n in per_file_n.items()}
+    alerts = [f"{f}: quarantine rate {r:.2%} > {max_rate:.2%}" for f, r in sorted(rates.items()) if r > max_rate]
+    alerts += [f"{f}: unexpected JSON fields {d}" for f, d in sorted(drift.items())]
+    for a in alerts:
+        print(f"  ALERT  {a}")
+    if alerts and cfg.get("alerts", {}).get("fail_on_alert", False):
+        raise SystemExit(f"ERROR: {len(alerts)} alert(s) and alerts.fail_on_alert is true")
 
     write_parquet(df, interim(cfg, "cleaned.parquet"))
     q_url = join(storage_roots(cfg)[0], "quarantine", version, "quarantine.parquet")
@@ -176,6 +204,9 @@ def main(argv: list[str] | None = None) -> None:
         "pii_masking": pii_counts,
         "row_accounting": {"rows_read": rows_read, "rows_kept": int(len(df)), "rows_quarantined": int(len(q)),
                            "check": "passed: rows_read = rows_kept + rows_quarantined"},
+        "quarantine_rate_by_file": dict(sorted(rates.items())),
+        "schema_by_file": {f: {k: int(n) for k, n in c.items()} for f, c in sorted(schemas.items())},
+        "alerts": alerts,
         "quarantine_file": {"uri": q_url, "sha256": sha256_bytes(q_bytes), "rows": int(len(q))},
         "pairs_after_cleaning": int(len(df)),
     })

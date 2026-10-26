@@ -131,5 +131,14 @@
     "bootstrap_resamples": 2000,
     "seed": 42,
     "cv_folds": 5
+  },
+  "alerts": {
+    "max_quarantine_rate_per_file": 0.02,
+    "expected_fields": [
+      "chosen",
+      "rejected"
+    ],
+    "fail_on_alert": false,
+    "_comment": "Step 3 monitoring. v1.1 maximum per-file quarantine rate is 1.3% (helpful-rejection-sampled), so 2% leaves headroom; a new batch above it, or with different JSON fields, raises an ALERT."
   }
 }
