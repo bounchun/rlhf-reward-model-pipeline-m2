@@ -1,4 +1,4 @@
-# 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 2: data understanding and pipeline
+# 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 2
 
 This repository is Milestone 2 of my *Data Handling and Infrastructure for AI* project (SETU, 2026). It continues the Milestone 1 repository, **[bounchun/rlhf-reward-model-pipeline](https://github.com/bounchun/rlhf-reward-model-pipeline)** (release `data-v1.0`), and keeps its full commit history, so the development from M1 to M2 can be followed commit by commit. The Milestone 1 decisions that did not change are summarised in [Builds on Milestone 1](#-builds-on-milestone-1).
 
