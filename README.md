@@ -248,13 +248,7 @@ The Milestone 1 reading list (bias, auditing, data poisoning, Google Cloud docum
 
 ---
 
-## 🤖 Use of AI
 
-**Tool:** Claude (Anthropic). Milestone 1's AI use is documented in the [M1 README]({M1}#-use-of-ai).
-
-| Part of the work | My role | How AI helped |
-| --- | --- | --- |
-| Milestone 2 (Oct 2026) | [BC: describe your role, e.g. which findings and decisions you checked or changed] | Wrote first versions of `contract.py`, the step 3 quarantine and alerts, `step11_model_inputs.py`, `reconcile.py`, `beam_validate.py`, `eda.py`, the new tests, the CI workflow, the datasheet, the architecture diagram and this README; ran the pipeline on the real data (raw checksums verified against the pinned manifest) |
 
 ---
 
