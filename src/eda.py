@@ -793,7 +793,8 @@ def findings(s: dict) -> pd.DataFrame:
          f"and bag-of-words models; group folds vary more between folds; dev: "
          + ", ".join(f"{m.split(' (')[0]} {v['rate']:.1%}" for m, v in s['E11_cross_validation']['dev'].items()),
          "Use GroupKFold for any cross-validation in M3; the bag-of-words model is the first text baseline",
-         "No leak for reply-only features; a model that reads the prompt could still memorise it"),
+         "No measurable inflation for these reply-only models; this does not prove leakage is absent, and a model "
+         "that reads the prompt could still memorise it"),
         (f"{e3['context_over_max_words']['rate']:.1%} of train contexts exceed {e3['max_context_words_setting']} words",
          f"Model inputs keep the last {e3['max_context_words_setting']} words of the context (step 11, left truncation)",
          "Early turns are lost for long conversations"),
@@ -805,7 +806,8 @@ def findings(s: dict) -> pd.DataFrame:
          "Association, not causation: length may stand for informativeness or for refusing"),
         (f"Length alone scores {e8['logreg_length_only']['dev']['rate']:.1%} on dev when pooled, but "
          f"{e8['logreg_length_per_subset']['dev']['rate']:.1%} with one length model per subset "
-         f"(majority class: {e8['majority_class']['dev']['rate']:.1%})",
+         f"(constant baseline: train's majority class, label {e8['majority_class']['predict']}, scores "
+         f"{e8['majority_class']['dev']['rate']:.1%} on dev)",
          "Baselines for M3: the reward model must beat the per-subset length model on every subset, not just pooled",
          "Dev only (test untouched); dev CI is about +/-1.8 points"),
         (f"The text mixes typographic and straight apostrophes ({s['E5_refusals']['replies_with_typographic_apostrophe']['rate']:.0%}"

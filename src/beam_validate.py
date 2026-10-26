@@ -10,7 +10,7 @@ Why this exists
   tagged quarantine output (`bad`), Beam Metrics counters, and a CombinePerKey for duplicates.
 - It then compares Beam's counters with the counts that step 3 wrote to the manifest. Two engines
   agreeing is the "check it with a second method" idea of Lecture 6, step 7b.
-- The same code can run on Google Cloud Dataflow (`--runner DataflowRunner` plus a GCP project,
+- Not run on Dataflow (planned, untested): the same code should run there (`--runner DataflowRunner` plus a GCP project,
   region, temp location and gs:// input, which needs `apache-beam[gcp]`). It is not run there: at
   79 MB the job costs more to start than to compute, and a local run takes about a minute.
 
