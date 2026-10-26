@@ -852,5 +852,57 @@
       }
     },
     "figure": "fig5_length_baselines_dev.png"
+  },
+  "E9_feature_relationships": {
+    "figure": "fig7_feature_correlations.png",
+    "spearman": {
+      "reply A words": {
+        "reply A words": 1.0,
+        "reply B words": 0.502,
+        "|length gap|": 0.424,
+        "Human turns": -0.076,
+        "context words": 0.16
+      },
+      "reply B words": {
+        "reply A words": 0.502,
+        "reply B words": 1.0,
+        "|length gap|": 0.421,
+        "Human turns": -0.078,
+        "context words": 0.157
+      },
+      "|length gap|": {
+        "reply A words": 0.424,
+        "reply B words": 0.421,
+        "|length gap|": 1.0,
+        "Human turns": -0.103,
+        "context words": 0.029
+      },
+      "Human turns": {
+        "reply A words": -0.076,
+        "reply B words": -0.078,
+        "|length gap|": -0.103,
+        "Human turns": 1.0,
+        "context words": 0.823
+      },
+      "context words": {
+        "reply A words": 0.16,
+        "reply B words": 0.157,
+        "|length gap|": 0.029,
+        "Human turns": 0.823,
+        "context words": 1.0
+      }
+    },
+    "reply_a_vs_b_by_subset": {
+      "helpful-base": 0.269,
+      "helpful-rejection-sampled": 0.393,
+      "helpful-online": 0.542,
+      "harmless-base": 0.303
+    },
+    "turns_vs_context_by_subset": {
+      "helpful-base": 0.856,
+      "helpful-rejection-sampled": 0.856,
+      "helpful-online": 0.868,
+      "harmless-base": 0.855
+    }
   }
 }
