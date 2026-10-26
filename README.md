@@ -23,9 +23,53 @@ This repository is Milestone 2 of my *Data Handling and Infrastructure for AI* p
 
 ### M2.1 Pipeline architecture
 
-![Pipeline architecture v1.1](docs/img/architecture_m2.png)
+```text
+make all  (Colab or local · steps run top to bottom · each logs to manifests/v1.1.json)
+│
+├── 1 SOURCE  (manual, once)
+│   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
+│   └── setup_gcs.sh               2 buckets, versioning, lifecycle, 2 service accounts
+│
+├── 2 INGEST
+│   ├── step1_scrape_raw           8 files over HTTPS ─────────────▶ data/downloads/ + SHA-256
+│   └── step2_store_raw            upload, read back, verify ──────▶ main bucket: raw/
+│
+├── 3 VALIDATE
+│   ├── step3_clean                raw data contract, PII masking
+│   │                              bad rows (reason, file, line) ──▶ main bucket: quarantine/v1.1/
+│   ├── step4_quality_checks       hard checks, poisoning screen ──▶ main bucket: audit/v1.1/
+│   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match
+│
+├── 4 TRANSFORM
+│   ├── step5_features             group_id, A/B swap → label, lengths, refusal flags
+│   ├── step6_filter               future reserve, 30k working set
+│   ├── step7_split                80/10/10 by hashed group, outlier cut-off fitted on train
+│   └── step8_shard                skipped (one file is faster at this size)
+│
+├── 5 STORE
+│   ├── step9_store_processed      17-rule contract; HARD violation ⇒ nothing uploaded
+│   │                              train, dev ─────────────────────▶ main bucket: processed/v1.1/
+│   │                              test, F1, F2 ───────────────────▶ holdout bucket: v1.1/
+│   ├── step10_review_sample       blind 200-pair sheet ───────────▶ stays local
+│   └── step11_model_inputs        truncated text, scaled lengths ─▶ model_inputs/ in both buckets
+│
+└── 6 CHECK
+    ├── sample_queries             sanity queries on train/dev ────▶ main bucket: audit/v1.1/
+    ├── reconcile                  recount from raw, 7 checks ─────▶ main bucket: audit/v1.1/
+    └── eda                        9 figures + findings ───────────▶ GitHub: docs/eda/
 
-*Source of the diagram: `docs/architecture_m2.html`. Blue steps are automated by `make all` (and the Colab notebook); dashed boxes are manual.*
+gs://bc-rlhf-reward-2026                      (main bucket · Standard · versioning on)
+├── raw/                           original files from Hugging Face, write-once
+├── quarantine/v1.1/               rejected rows with reason, file and line
+├── processed/v1.1/                train.parquet, dev.parquet
+│   └── model_inputs/              train, dev, numeric_scaler.json ──▶ read by Milestone 3
+├── audit/v1.1/                    validation log, quality report, queries, reconcile
+└── manifests/                     v1.1.json ···· copy ····▶ GitHub: manifests/
+
+gs://bc-rlhf-reward-2026-holdout              (Coldline · training account has no access)
+└── v1.1/                          test, future_f1, future_f2 (+ model_inputs/), read once
+
+```
 
 **ETL, not ELT.** The transformations (parsing conversations, the A/B swap, hashing groups, masking PII) are Python code, not SQL, and the whole dataset is 79 MB of raw files, so the work runs in one Python process (about 2½ minutes for steps 1–11) and only the cleaned Parquet files are loaded into storage. The raw layer is kept untouched (write-once, versioned bucket), so the main advantage of ELT — fixing a rule and re-running from the raw data — is kept too. Apache Beam / Dataflow (Lecture 6) would add cost and machinery without any benefit at this size; the pipeline still follows the same ideas: a data contract per row, a quarantine with reasons, counters, idempotent reruns and a reconciliation.
 
