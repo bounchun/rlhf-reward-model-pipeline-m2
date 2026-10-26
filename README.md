@@ -7,7 +7,6 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 | **Task** | Given a conversation and two replies, predict which one a crowdworker preferred (reward modelling for RLHF) |
 | **Data** | [`Anthropic/hh-rlhf`](https://huggingface.co/datasets/Anthropic/hh-rlhf), MIT licence, pinned to commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa` |
 | **Dataset version** | **v1.1** (M1 was v1.0). Same raw data and same split; new validation, quarantine, PII masking and model-ready inputs |
-| **Datasheet** | [`docs/DATASHEET.md`](docs/DATASHEET.md) (Gebru et al., 2021) |
 
 ## 🧭 Milestone 2 at a glance (dataset version v1.1)
 
