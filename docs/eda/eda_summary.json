@@ -904,5 +904,172 @@
       "helpful-online": 0.868,
       "harmless-base": 0.855
     }
+  },
+  "E10_inference": {
+    "figure": "fig8_inference.png",
+    "bootstrap_resamples": 2000,
+    "seed": 42,
+    "length_bias_train_clustered": {
+      "helpful-base": {
+        "estimate": 0.5821,
+        "wilson_ci95": [
+          0.57,
+          0.594
+        ],
+        "group_bootstrap_ci95": [
+          0.5695,
+          0.5947
+        ],
+        "design_effect": 1.09
+      },
+      "helpful-rejection-sampled": {
+        "estimate": 0.5714,
+        "wilson_ci95": [
+          0.5602,
+          0.5825
+        ],
+        "group_bootstrap_ci95": [
+          0.5591,
+          0.5832
+        ],
+        "design_effect": 1.15
+      },
+      "helpful-online": {
+        "estimate": 0.4498,
+        "wilson_ci95": [
+          0.4329,
+          0.4669
+        ],
+        "group_bootstrap_ci95": [
+          0.4325,
+          0.4677
+        ],
+        "design_effect": 1.08
+      },
+      "harmless-base": {
+        "estimate": 0.4213,
+        "wilson_ci95": [
+          0.4092,
+          0.4336
+        ],
+        "group_bootstrap_ci95": [
+          0.4087,
+          0.4346
+        ],
+        "design_effect": 1.07
+      }
+    },
+    "risk_difference_helpful_minus_harmless": {
+      "estimand": "P(longer preferred | helpful-base) - P(longer preferred | harmless-base)",
+      "estimate": 0.1608,
+      "group_bootstrap_ci95": [
+        0.1431,
+        0.1783
+      ]
+    },
+    "dev_confirmation_length_bias": {
+      "helpful-base": {
+        "k": 437,
+        "n": 715,
+        "rate": 0.6112,
+        "ci95": [
+          0.575,
+          0.6462
+        ],
+        "verdict": "confirmed"
+      },
+      "helpful-rejection-sampled": {
+        "k": 519,
+        "n": 936,
+        "rate": 0.5545,
+        "ci95": [
+          0.5225,
+          0.586
+        ],
+        "verdict": "confirmed"
+      },
+      "helpful-online": {
+        "k": 156,
+        "n": 354,
+        "rate": 0.4407,
+        "ci95": [
+          0.3899,
+          0.4928
+        ],
+        "verdict": "confirmed"
+      },
+      "harmless-base": {
+        "k": 322,
+        "n": 814,
+        "rate": 0.3956,
+        "ci95": [
+          0.3626,
+          0.4296
+        ],
+        "verdict": "confirmed"
+      }
+    },
+    "dev_confirmation_refusal_preferred": {
+      "harmless-base": {
+        "k": 26,
+        "n": 35,
+        "rate": 0.7429,
+        "ci95": [
+          0.5793,
+          0.8584
+        ]
+      },
+      "helpful subsets": {
+        "k": 8,
+        "n": 28,
+        "rate": 0.2857,
+        "ci95": [
+          0.1525,
+          0.4706
+        ]
+      }
+    },
+    "p_values": {
+      "E1 subset x quarantined (all raw)": 5.64e-65,
+      "E4 subset x longer-preferred (train)": 6.01e-106,
+      "E5 subset x refusal-preferred (train)": 2.16e-26,
+      "E10 subset x longer-preferred (dev)": 1.48e-18
+    },
+    "p_values_benjamini_hochberg": {
+      "E10 subset x longer-preferred (dev)": 1.48e-18,
+      "E5 subset x refusal-preferred (train)": 2.88e-26,
+      "E1 subset x quarantined (all raw)": 1.13e-64,
+      "E4 subset x longer-preferred (train)": 2.4e-105
+    },
+    "median_design_effect": 1.085,
+    "test_precision_per_subset": {
+      "helpful-base": {
+        "test_pairs": 830,
+        "ci95_half_width_at_60pct": 0.0347
+      },
+      "helpful-rejection-sampled": {
+        "test_pairs": 988,
+        "ci95_half_width_at_60pct": 0.0318
+      },
+      "helpful-online": {
+        "test_pairs": 434,
+        "ci95_half_width_at_60pct": 0.048
+      },
+      "harmless-base": {
+        "test_pairs": 752,
+        "ci95_half_width_at_60pct": 0.0365
+      }
+    },
+    "dev_accuracy_per_subset_length_model": {
+      "estimate": 0.5817,
+      "wilson_ci95": [
+        0.5636,
+        0.5996
+      ],
+      "group_bootstrap_ci95": [
+        0.5632,
+        0.6006
+      ]
+    }
   }
 }
