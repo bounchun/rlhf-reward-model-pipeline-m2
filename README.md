@@ -1,6 +1,6 @@
 # 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 2: data understanding and pipeline
 
-This repository is **Milestone 2** of my *Data Handling and Infrastructure for AI* project (SETU, 2026). It continues the Milestone 1 repository, **[bounchun/rlhf-reward-model-pipeline](https://github.com/bounchun/rlhf-reward-model-pipeline)** (release `data-v1.0`), and keeps its full commit history, so the development from M1 to M2 can be followed commit by commit. The Milestone 1 decisions that did not change are summarised in [Builds on Milestone 1](#-builds-on-milestone-1); the M1 README explains them in full.
+This repository is Milestone 2 of my *Data Handling and Infrastructure for AI* project (SETU, 2026). It continues the Milestone 1 repository, **[bounchun/rlhf-reward-model-pipeline](https://github.com/bounchun/rlhf-reward-model-pipeline)** (release `data-v1.0`), and keeps its full commit history, so the development from M1 to M2 can be followed commit by commit. The Milestone 1 decisions that did not change are summarised in [Builds on Milestone 1](#-builds-on-milestone-1).
 
 | | |
 |---|---|
@@ -15,10 +15,10 @@ This repository is **Milestone 2** of my *Data Handling and Infrastructure for A
 |---|---|
 | EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.2](#m22-what-the-eda-found-and-what-it-changed) |
 | Pipeline: acquire → validate → store → transform | Steps 1–11 (`make all`), diagram in [M2.1](#m21-pipeline-architecture) |
-| Validation that fails loudly | `src/contract.py`: raw contract in step 3 (bad rows go to a **quarantine** with reason, file and line), 17-rule processed contract in step 9 (`audit/v1.1/validation_log.csv`; a HARD violation stops the run before anything is uploaded) |
-| Cleaning and transformation | step 3 (normalise, PII masking, 7 quarantine reasons), step 5 (A/B swap, features), step 7 (train-fitted outlier flag), **step 11** (model-ready inputs: left-truncated contexts, log-length features scaled with the train mean/SD) |
+| Validation that fails loudly | `src/contract.py`: raw contract in step 3 (bad rows go to a quarantine with reason, file and line), 17-rule processed contract in step 9 (`audit/v1.1/validation_log.csv`; a HARD violation stops the run before anything is uploaded) |
+| Cleaning and transformation | step 3 (normalise, PII masking, 7 quarantine reasons), step 5 (A/B swap, features), step 7 (train-fitted outlier flag), step 11 (model-ready inputs: left-truncated contexts, log-length features scaled with the train mean/SD) |
 | Second method / reconciliation | `src/reconcile.py` (`make reconcile`): recounts everything from the raw files with plain Python; 7 checks must agree |
-| Reproducibility | pinned data commit and libraries, hash-based splits, byte-identical reruns (tested), **43 tests** and an offline demo run on every push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Reproducibility | pinned data commit and libraries, hash-based splits, byte-identical reruns (tested), 43 tests and an offline demo run on every push by GitHub Actions (`.github/workflows/ci.yml`) |
 | Changes since v1.0 | [M2.3](#m23-changes-since-v10-and-why) |
 
 ### M2.1 Pipeline architecture
@@ -37,15 +37,15 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 |---|---|---|
 | 1 | In the raw files the preferred reply is **always** `chosen`: a model could reach 100% by learning the column | A/B swap by `hash(pair_id)`; label share now 49.8% in train |
 | 2 | 1,323 of 169,352 raw pairs break a rule; the rate differs by subset (13.0 per 1,000 in helpful-rejection-sampled vs 4.7 in harmless-base; χ² p = 6e-65, Cramér's V = 0.04), so the problems are not "missing completely at random" | Quarantine with reason and source line instead of a silent drop; `rows_read = kept + quarantined` asserted (fig. 1) |
-| 3 | 93% of pairs share their opening prompt with another pair, and **92% of official test pairs have their prompt in the official train split** | Confirms the M1 group split; contract rule "no `group_id` in two splits" (fig. 2) |
+| 3 | 93% of pairs share their opening prompt with another pair, and 92% of official test pairs have their prompt in the official train split | Confirms the M1 group split; contract rule "no `group_id` in two splits" (fig. 2) |
 | 4 | Reply length is right-skewed (skew 2.0, −0.4 after `log1p`); the 1.5×IQR fence would flag 5% of replies | Flag (not delete) above the train 99th percentile (210 words); `log1p` lengths in step 11 (fig. 3) |
 | 5 | 9.7% of train contexts are longer than 256 words | Step 11 keeps the newest turns (left truncation) and records `context_truncated` |
 | 6 | The preferred reply is longer in 58% of helpful-base pairs but only 42% of harmless-base pairs; pooled (52%) this cancels out (Cramér's V = 0.14) | Length is a shortcut that depends on the subset: M3 reports accuracy per subset and per length-gap slice (fig. 4) |
-| 7 | Length alone gets 51.4% on dev pooled, but **58.2%** with one length model per subset | These are the baselines the M3 reward model must beat on every subset (fig. 5) |
+| 7 | Length alone gets 51.4% on dev pooled, but 58.2% with one length model per subset | These are the baselines the M3 reward model must beat on every subset (fig. 5) |
 | 8 | 47% of replies use the typographic apostrophe ’, so the v1.0 refusal regex (straight `'`) flagged only 0.09% of pairs | Refusal phrases rebuilt from the data and made apostrophe-agnostic: 2.2% flagged |
 | 9 | When only one reply is a refusal, it is preferred in 75% of harmless-base pairs but 27% of helpful-base pairs | A second subset-dependent shortcut: refusal slice per subset in M3 (fig. 6) |
 | 10 | Inputs are correlated: reply A vs B length ρ = 0.50 pooled but only 0.27–0.54 within subsets (the subsets differ in typical length); turns vs context words ρ = 0.82 | Use the log length ratio for linear baselines; the two-reply correlation is partly a subset effect, another reason to evaluate per subset (fig. 7) |
-| 11 | Week 4 inference: rows are clustered in prompt groups, so intervals were recomputed with a **group bootstrap** (resampling prompt groups, not rows). Design effect only 1.07–1.15; helpful-base minus harmless-base length preference = 16.1 points (95% CI 14.3–17.8); the length effect **replicates on held-out dev** in all 4 subsets; all 4 tests stay significant after Benjamini–Hochberg | M3 reports group-bootstrap intervals; per-subset test accuracy can only be known to ±3–5 points, so smaller per-subset differences will not be claimed (fig. 8) |
+| 11 | Week 4 inference: rows are clustered in prompt groups, so intervals were recomputed with a group bootstrap (resampling prompt groups, not rows). Design effect only 1.07–1.15; helpful-base minus harmless-base length preference = 16.1 points (95% CI 14.3–17.8); the length effect replicates on held-out dev in all 4 subsets; all 4 tests stay significant after Benjamini–Hochberg | M3 reports group-bootstrap intervals; per-subset test accuracy can only be known to ±3–5 points, so smaller per-subset differences will not be claimed (fig. 8) |
 | 12 | Week 5 cross-validation: two scikit-learn Pipelines (a ColumnTransformer length × subset model, and a bag-of-words model whose vocabulary is learned inside each fold) give the same accuracy with random-row folds and with `GroupKFold` on prompt groups (gap ≤ 0.2 points), but group folds vary more between folds | GroupKFold for any CV in M3; bag of words (54.8% dev) is the first text baseline. No measurable inflation from random-row folds for these reply-only models (which does not prove leakage is absent); a model that also reads the prompt could still memorise it (fig. 9) |
 | 13 | 304 pairs contain an e-mail and 724 a phone-like number | Masked as `[EMAIL]` / `[PHONE]`; step 4 checks that none is left |
 
@@ -60,7 +60,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | Fails loudly | Checksum mismatch, row-accounting gap, HARD contract violation, reconciliation disagreement or (optionally) an alert stops the run |
 | Cost-aware | 79 MB batch: one Python process (~2.5 min) instead of Dataflow workers; Colab and CI are free; buckets are a few hundred MB with lifecycle rules |
 
-**Apache Beam (optional, `make beam`).** `src/beam_validate.py` runs step 3's data contract as a Beam pipeline: a file-reading `DoFn`, a `Validate` `DoFn` with a tagged `bad` output, Beam `Metrics` counters and a `CombinePerKey` for duplicates. It then compares every counter with the pandas step 3. On the real data all 10 counts agree (169,352 read, 168,029 kept, 1,323 quarantined, by reason). The comparison earned its place: in the first version, Beam's built-in `.gz` reading returned only 44,044 rows, and the mismatch exposed it at once. Running it on Dataflow is **planned, not implemented**: the code uses only portable Beam transforms and should run with `--runner DataflowRunner` and `apache-beam[gcp]`, but it has not been tested there, because at this size the workers would cost more to start than the job takes on one machine.
+**Apache Beam (optional, `make beam`).** `src/beam_validate.py` runs step 3's data contract as a Beam pipeline: a file-reading `DoFn`, a `Validate` `DoFn` with a tagged `bad` output, Beam `Metrics` counters and a `CombinePerKey` for duplicates. It then compares every counter with the pandas step 3. On the real data all 10 counts agree (169,352 read, 168,029 kept, 1,323 quarantined, by reason). The comparison earned its place: in the first version, Beam's built-in `.gz` reading returned only 44,044 rows, and the mismatch exposed it at once. Running it on Dataflow is planned, not implemented: the code uses only portable Beam transforms and should run with `--runner DataflowRunner` and `apache-beam[gcp]`, but it has not been tested there, because at this size the workers would cost more to start than the job takes on one machine.
 
 ### From lectures to pipeline rules (Weeks 4–6)
 
@@ -80,7 +80,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | Leakage type | Status in this project |
 |---|---|
 | L1.1 No test set | Group-held-out test set in a separate bucket that the training account cannot read |
-| L1.2 Pre-processing on train and test | Outlier threshold, scaler and refusal phrases are derived from **train only**; tested |
+| L1.2 Pre-processing on train and test | Outlier threshold, scaler and refusal phrases are derived from train only; tested |
 | L1.3 Feature selection on train and test | No feature selection; evaluation slices fixed in `config.json` before the test set is used |
 | L1.4 Duplicates | Exact duplicates quarantined; contract rule "no `pair_id` in two splits"; 0 repeated comparisons |
 | L2 Illegitimate features | The `chosen` position is neutralised by the A/B swap; `subset`, `split` and the flags are evaluation variables, not model inputs |
@@ -98,7 +98,7 @@ The data split, storage and access design from Milestone 1 are **unchanged** (sa
 |---|---|
 | Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Lecture 6: "don't crash, don't hide"; every rejected row keeps its reason, file and line number |
 | Processed data contract + `validation_log.csv` | Lecture 5: record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
-| PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed **before** masking so pair ids and splits do not move |
+| PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed before masking so pair ids and splits do not move |
 | Refusal phrases v1.1 | EDA finding 8 (planned in the M1 README) |
 | Step 11 model-ready inputs | Lecture 5: fit on train, transform every split; prepares M3 |
 | `reconcile.py`, `eda.py`, CI workflow | Evidence that the pipeline is correct and reproducible |
@@ -153,10 +153,10 @@ The data split, storage and access design from Milestone 1 are **unchanged** (sa
 It should end with `OK` (43 tests passed; the Apache Beam test runs when `requirements-beam.txt` is installed, as in CI) and `demo OK` (the whole pipeline, steps 1–11, the reconciliation and the EDA, run on fake data with planted problems). Nothing touches Google Cloud. The same two commands run on every push in GitHub Actions.
 
 **Option 2: the full pipeline on the real data.** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bounchun/rlhf-reward-model-pipeline-m2/blob/main/notebooks/run_pipeline_colab.ipynb)
-1. Click the badge, then **File → Save a copy in Drive**.
+1. Click the badge, then File → Save a copy in Drive.
 2. Add a Colab Secret (🔑 in the left sidebar): name `DHAI_BUCKET`, value = the name of a bucket in your own Google Cloud project, with notebook access switched on.
 3. In the first code cell, set `GCP_PROJECT` to your project ID.
-4. Run the cells from top to bottom. Run **0b** once to create your buckets (skip it if they already exist from Milestone 1), and skip the cells marked *skip*.
+4. Run the cells from top to bottom. Run 0b once to create your buckets (skip it if they already exist from Milestone 1), and skip the cells marked *skip*.
 
 The run takes about 5–10 minutes and gives the same numbers as in [M2.4](#m24-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The last Milestone 2 cell downloads `docs/eda/` and `manifests/v1.1.json` to commit.
 
@@ -181,7 +181,7 @@ One Python script per step; each script says at the top what it reads, writes an
 |---|---|---|
 | 1 Acquire | `step1_scrape_raw.py` | Hugging Face (pinned commit; retries with backoff) → `data/downloads/`, `manifests/raw-⟨rev⟩.json` |
 | 2 Store raw | `step2_store_raw.py` | → `gs://bc-rlhf-reward-2026/raw/` (write-once, read-back verified) |
-| 3 Validate + clean | `step3_clean.py`, `contract.py` | raw → `cleaned.parquet` + **quarantine** with reasons; row accounting; PII masking; schema and reject-rate alerts |
+| 3 Validate + clean | `step3_clean.py`, `contract.py` | raw → `cleaned.parquet` + quarantine with reasons; row accounting; PII masking; schema and reject-rate alerts |
 | 4 Quality checks | `step4_quality_checks.py` | hard checks, poisoning screen, residual-PII check → `audit/<version>/` |
 | 5 Features | `step5_features.py` | group keys, A/B swap → `label`, lengths, refusal flags |
 | 6 Filter | `step6_filter.py` | future reserve F1/F2 + 30,002-pair working set (whole prompt groups) |
@@ -217,7 +217,7 @@ Interim files (`data/interim/`) stay local and are never committed: before the s
 
 ## 🔗 Builds on Milestone 1
 
-These decisions are unchanged from Milestone 1 and are only summarised here. Details: [Milestone 1 README]({M1}#readme).
+These decisions are unchanged from Milestone 1 and are only summarised here. 
 
 | Decision | Summary |
 |---|---|
