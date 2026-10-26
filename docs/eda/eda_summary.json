@@ -1071,5 +1071,159 @@
         0.6006
       ]
     }
+  },
+  "E11_cross_validation": {
+    "folds": 5,
+    "cv": {
+      "length x subset (ColumnTransformer)": {
+        "random rows (StratifiedKFold)": {
+          "mean": 0.5688,
+          "sd": 0.0041,
+          "folds": [
+            0.5693,
+            0.5652,
+            0.5717,
+            0.5634,
+            0.5744
+          ]
+        },
+        "prompt groups (GroupKFold)": {
+          "mean": 0.567,
+          "sd": 0.0109,
+          "folds": [
+            0.5834,
+            0.5681,
+            0.5659,
+            0.5491,
+            0.5684
+          ]
+        }
+      },
+      "bag of words, reply A - reply B": {
+        "random rows (StratifiedKFold)": {
+          "mean": 0.5486,
+          "sd": 0.0029,
+          "folds": [
+            0.5438,
+            0.5509,
+            0.5471,
+            0.5518,
+            0.5493
+          ]
+        },
+        "prompt groups (GroupKFold)": {
+          "mean": 0.5491,
+          "sd": 0.013,
+          "folds": [
+            0.5737,
+            0.5509,
+            0.5398,
+            0.5408,
+            0.5402
+          ]
+        }
+      }
+    },
+    "dev": {
+      "length x subset (ColumnTransformer)": {
+        "k": 1665,
+        "n": 2876,
+        "rate": 0.5789,
+        "ci95": [
+          0.5608,
+          0.5969
+        ],
+        "by_subset": {
+          "helpful-base": {
+            "k": 437,
+            "n": 723,
+            "rate": 0.6044,
+            "ci95": [
+              0.5683,
+              0.6394
+            ]
+          },
+          "helpful-rejection-sampled": {
+            "k": 530,
+            "n": 966,
+            "rate": 0.5487,
+            "ci95": [
+              0.5171,
+              0.5798
+            ]
+          },
+          "helpful-online": {
+            "k": 196,
+            "n": 356,
+            "rate": 0.5506,
+            "ci95": [
+              0.4986,
+              0.6014
+            ]
+          },
+          "harmless-base": {
+            "k": 502,
+            "n": 831,
+            "rate": 0.6041,
+            "ci95": [
+              0.5704,
+              0.6368
+            ]
+          }
+        }
+      },
+      "bag of words, reply A - reply B": {
+        "k": 1577,
+        "n": 2876,
+        "rate": 0.5483,
+        "ci95": [
+          0.5301,
+          0.5664
+        ],
+        "by_subset": {
+          "helpful-base": {
+            "k": 425,
+            "n": 723,
+            "rate": 0.5878,
+            "ci95": [
+              0.5516,
+              0.6232
+            ]
+          },
+          "helpful-rejection-sampled": {
+            "k": 528,
+            "n": 966,
+            "rate": 0.5466,
+            "ci95": [
+              0.5151,
+              0.5777
+            ]
+          },
+          "helpful-online": {
+            "k": 191,
+            "n": 356,
+            "rate": 0.5365,
+            "ci95": [
+              0.4846,
+              0.5877
+            ]
+          },
+          "harmless-base": {
+            "k": 433,
+            "n": 831,
+            "rate": 0.5211,
+            "ci95": [
+              0.4871,
+              0.5548
+            ]
+          }
+        }
+      }
+    },
+    "row_minus_group_cv_gap": {
+      "length x subset (ColumnTransformer)": 0.0018,
+      "bag of words, reply A - reply B": -0.0005
+    },
+    "figure": "fig9_cross_validation.png"
   }
 }
