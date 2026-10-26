@@ -110,6 +110,32 @@ class TestStep1And2Raw(unittest.TestCase):
         self.assertIn("https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/abc123/harmless-base/train.jsonl.gz",
                       calls)
 
+    def test_download_retries_transient_errors_but_not_404(self):
+        import requests
+
+        class Resp:
+            def __init__(self, status):
+                self.status_code, self.content = status, b"ok"
+
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    raise requests.HTTPError(f"{self.status_code} Client Error")
+
+        answers = [requests.ConnectionError("reset"), Resp(503), Resp(200)]
+
+        def flaky(url, timeout):
+            a = answers.pop(0)
+            if isinstance(a, Exception):
+                raise a
+            return a
+
+        with mock.patch("requests.get", flaky), mock.patch("time.sleep"):
+            self.assertEqual(step1_scrape_raw.hf_file_bytes("r", "abc", "k"), b"ok")
+        with mock.patch("requests.get", lambda url, timeout: Resp(404)), mock.patch("time.sleep") as slept, \
+                self.assertRaisesRegex(SystemExit, "after 1 attempt"):
+            step1_scrape_raw.hf_file_bytes("r", "abc", "k")
+        slept.assert_not_called()
+
     def test_store_refuses_to_overwrite_raw_with_different_bytes(self):
         with tempfile.TemporaryDirectory() as d:
             base = Path(d)
@@ -413,7 +439,7 @@ class TestReconcileAndEDA(unittest.TestCase):
             eda.main(["--config", str(RUN["cfg_path"])])
         self.assertFalse([u for u in seen if "holdout" in u])
         out = RUN["base"] / "eda"
-        self.assertEqual(len(list(out.glob("fig*.png"))), 6)
+        self.assertEqual(len(list(out.glob("fig*.png"))), 7)
         f = pd.read_csv(out / "findings.csv")
         self.assertEqual(list(f.columns), ["finding", "decision", "limitation"])
         self.assertGreaterEqual(len(f), 8)

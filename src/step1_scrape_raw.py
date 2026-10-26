@@ -9,6 +9,10 @@ Input : https://huggingface.co/datasets/Anthropic/hh-rlhf/resolve/<hf_revision>/
 Output: <download_dir>/<hf_revision>/<subset>/<split>.jsonl.gz   (local, unmodified bytes)
         <manifest_dir>/raw-<hf_revision>.json                    (SHA-256 of every file)
 
+Robustness
+- Network errors, timeouts and HTTP 429/5xx are retried with exponential backoff (4 attempts);
+  a final failure stops the run with a clear message. Partial downloads are never written.
+
 Reproducibility
 - hf_revision in config.json must be an exact commit hash ("main" is refused), so the
   same bytes are downloaded every time.
@@ -17,7 +21,7 @@ Reproducibility
 from __future__ import annotations
 
 import json
-import shutil
+import time
 from pathlib import Path
 
 from .common import local_path, raw_manifest_path, revision, sha256_bytes, step_args, utc_now, write_json
@@ -33,12 +37,31 @@ def resolve_revision(repo_id: str) -> str:
     return r.json()["sha"]
 
 
-def hf_file_bytes(repo_id: str, rev: str, key: str) -> bytes:
+def hf_file_bytes(repo_id: str, rev: str, key: str, attempts: int = 4, backoff: float = 2.0) -> bytes:
+    """Download one file; retry network errors and 5xx/429 answers with exponential backoff.
+
+    A 4xx answer (other than 429) is not retried: a wrong revision or path will not fix itself.
+    Nothing is written until the whole file has arrived, and step 1 then checks its SHA-256.
+    """
     import requests
 
-    r = requests.get(f"{HF}/datasets/{repo_id}/resolve/{rev}/{key}", timeout=120)
-    r.raise_for_status()
-    return r.content
+    url = f"{HF}/datasets/{repo_id}/resolve/{rev}/{key}"
+    for attempt in range(1, attempts + 1):
+        try:
+            r = requests.get(url, timeout=120)
+            status = getattr(r, "status_code", 200)
+            if status == 429 or status >= 500:
+                raise requests.HTTPError(f"HTTP {status}")
+            r.raise_for_status()
+            return r.content
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as err:
+            retryable = not isinstance(err, requests.HTTPError) or str(err).startswith("HTTP ")
+            if attempt == attempts or not retryable:
+                raise SystemExit(f"ERROR: download failed after {attempt} attempt(s): {url} ({err})")
+            wait = backoff * 2 ** (attempt - 1)
+            print(f"  retry {attempt}/{attempts - 1} in {wait:.0f}s: {key} ({err})")
+            time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 def expected_keys(cfg: dict) -> list[str]:

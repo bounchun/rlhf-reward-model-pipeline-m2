@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> None:
     update_manifest(cfg, "step4_quality_checks", {**quality, "files": files})
     print(f"Validation passed: {checks}")
     print(f"Poison screen: {len(report)} one-sided n-grams in {len(hits)} pairs (flag only) -> {prefix}")
-    print(f"PII: " + ", ".join(f"{k}={v['pairs']}" for k, v in pii.items()))
+    print("PII: " + ", ".join(f"{k}={v['pairs']}" for k, v in pii.items()))
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ Which rows each analysis may look at (Lecture 5 slide 39, "split before learning
   E7     SPLIT CHECK: train vs dev profiles; test only through the counts already in the manifest
          (the holdout bucket is never read here).
   E8     SHORTCUT BASELINES: fitted on train, scored on dev. Never on test.
+  E9     FEATURE-FEATURE relationships (Spearman, train only).
 
 Inputs : <interim_dir>/<version>/features.parquet           (all cleaned pairs, from step 5)
          <main_root>/quarantine/<version>/quarantine.parquet (from step 3)
@@ -467,10 +468,62 @@ def e8_baselines(train: pd.DataFrame, dev: pd.DataFrame, out: Path) -> dict:
     return res
 
 
+# ----------------------------------------------------------------------------- E9 feature-feature relationships (train)
+def e9_feature_relationships(train: pd.DataFrame, out: Path) -> dict:
+    """Spearman correlations between the numeric inputs (rank-based: the lengths are skewed)."""
+    feats = pd.DataFrame({
+        "reply A words": train["len_a_words"], "reply B words": train["len_b_words"],
+        "|length gap|": train["len_diff"].abs(), "Human turns": train["num_turns"],
+        "context words": train["context"].str.split().str.len()})
+    corr = feats.corr(method="spearman")
+    within = {s: round(float(train.loc[train["subset"] == s, ["len_a_words", "len_b_words"]]
+                             .corr(method="spearman").iloc[0, 1]), 3) for s in SUBSETS}
+    turns_ctx = {s: round(float(feats.loc[(train["subset"] == s).to_numpy(), ["Human turns", "context words"]]
+                                .corr(method="spearman").iloc[0, 1]), 3) for s in SUBSETS}
+
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list("div", ["#e34948", "#f0efec", "#2a78d6"])  # red - grey - blue
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.6), gridspec_kw={"width_ratios": [1.15, 1]})
+    ax = axes[0]
+    ax.imshow(corr.to_numpy(), cmap=cmap, vmin=-1, vmax=1)
+    n = len(corr)
+    ax.set_xticks(range(n), corr.columns, rotation=30, ha="right", fontsize=8)
+    ax.set_yticks(range(n), corr.index, fontsize=8)
+    for i in range(n):
+        for j in range(n):
+            ax.text(j, i, f"{corr.iat[i, j]:.2f}", ha="center", va="center", fontsize=8, color=INK)
+    ax.set_title("(a) Spearman ρ between inputs (train)", loc="left", fontsize=10.5, color=INK,
+                 fontweight="semibold")
+    ax.tick_params(length=0, colors=INK2)
+    for side in ax.spines.values():
+        side.set_visible(False)
+    ax = axes[1]
+    x = np.arange(4)
+    ax.bar(x - 0.19, [within[s] for s in SUBSETS], width=0.36, color=[COLOR[s] for s in SUBSETS])
+    ax.bar(x + 0.19, [turns_ctx[s] for s in SUBSETS], width=0.36, color=[COLOR[s] for s in SUBSETS], alpha=0.45,
+           hatch="///", edgecolor="white")
+    for i, s in enumerate(SUBSETS):
+        ax.text(i - 0.19, within[s] + 0.01, f"{within[s]:.2f}", ha="center", fontsize=7.5, color=INK)
+        ax.text(i + 0.19, turns_ctx[s] + 0.01, f"{turns_ctx[s]:.2f}", ha="center", fontsize=7.5, color=INK)
+    ax.set_xticks(x, [SHORT[s] for s in SUBSETS], rotation=25, ha="right")
+    ax.set_ylim(0, 1.3)
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    style(ax, "(b) Two of them, per subset (train)", "", "Spearman ρ")
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(color=NEUTRAL, label="reply A vs reply B length"),
+                       Patch(facecolor=NEUTRAL, alpha=0.45, hatch="///", edgecolor="white",
+                             label="turns vs context words")], frameon=False, fontsize=7.5, loc="upper left", ncol=2)
+    fig.suptitle("Fig. 7  How the numeric inputs relate to each other", x=0.01, ha="left", fontsize=10, color=INK2)
+    name = save(fig, out, "fig7_feature_correlations.png")
+    return {"figure": name, "spearman": {r: {c: round(float(corr.loc[r, c]), 3) for c in corr.columns}
+                                         for r in corr.index},
+            "reply_a_vs_b_by_subset": within, "turns_vs_context_by_subset": turns_ctx}
+
+
 # ----------------------------------------------------------------------------- findings table
 def findings(s: dict) -> pd.DataFrame:
-    e1, e2, e3, e4, e8 = s["E1_raw_problems"], s["E2_duplicates_leakage"], s["E3_distributions"], \
-        s["E4_length_bias"], s["E8_baselines"]
+    e1, e2, e3, e4, e8, e9 = s["E1_raw_problems"], s["E2_duplicates_leakage"], s["E3_distributions"], \
+        s["E4_length_bias"], s["E8_baselines"], s["E9_feature_relationships"]
     by = e4["preferred_is_longer_by_subset"]
     hb, hm = by["helpful-base"]["rate"], by["harmless-base"]["rate"]
     rows = [
@@ -493,11 +546,17 @@ def findings(s: dict) -> pd.DataFrame:
          f"the 1.5 IQR fence would flag {e3['reply_words_all']['share_above_iqr_fence']:.1%} of replies",
          "Flag (not delete) replies above the train 99th percentile; use log1p lengths for numeric features",
          "Long replies are valid data; flagging is only for evaluation slices"),
+        (f"Inputs are related: reply A vs B length rho = {e9['spearman']['reply A words']['reply B words']:.2f}, "
+         f"turns vs context words rho = {e9['spearman']['Human turns']['context words']:.2f}",
+         "Use the log length ratio (step 11) rather than two raw lengths for linear baselines; keep both for slices",
+         "Spearman captures monotonic links only"),
         (f"{e3['context_over_max_words']['rate']:.1%} of train contexts exceed {e3['max_context_words_setting']} words",
          f"Model inputs keep the last {e3['max_context_words_setting']} words of the context (step 11, left truncation)",
          "Early turns are lost for long conversations"),
-        (f"Preferred reply is longer in {hb:.1%} of helpful-base pairs but only {hm:.1%} of harmless-base "
-         f"(Cramer's V = {e4['independence_test_subset_x_pref_longer']['cramers_v']}); pooled {e4['preferred_is_longer_pooled']['rate']:.1%} hides this",
+        (f"The longer reply is preferred in {hb:.1%} of helpful-base pairs and {hm:.1%} of harmless-base pairs "
+         f"(Cramer's V = {e4['independence_test_subset_x_pref_longer']['cramers_v']}; "
+         f"{'opposite sides of 50%' if (hb - 0.5) * (hm - 0.5) < 0 else 'same side of 50%'}); "
+         f"pooled: {e4['preferred_is_longer_pooled']['rate']:.1%}",
          "Length is a shortcut: never report pooled accuracy alone; evaluate per subset and per length-gap slice",
          "Association, not causation: length may stand for informativeness or for refusing"),
         (f"Length alone scores {e8['logreg_length_only']['dev']['rate']:.1%} on dev when pooled, but "
@@ -513,7 +572,7 @@ def findings(s: dict) -> pd.DataFrame:
          "the manual review sheet"),
         (f"When only one reply is flagged as a refusal, it is preferred in "
          f"{s['E5_refusals']['refusal_by_subset']['harmless-base']['flagged_reply_preferred_when_one_side']['rate']:.0%}"
-         f" of harmless-base pairs but {s['E5_refusals']['refusal_by_subset']['helpful-base']['flagged_reply_preferred_when_one_side']['rate']:.0%}"
+         f" of harmless-base pairs and {s['E5_refusals']['refusal_by_subset']['helpful-base']['flagged_reply_preferred_when_one_side']['rate']:.0%}"
          " of helpful-base pairs", "Refusal is a second subset-dependent shortcut: report accuracy on the refusal slice "
          "per subset in M3 (helpfulness vs harmlessness trade-off)", "Small n outside harmless-base; regex flag, not a "
          "human judgement"),
@@ -555,6 +614,8 @@ def main(argv: list[str] | None = None) -> None:
     summary["E7_split_profiles"] = e7_split_profiles(train, dev, manifest)
     print("E8 shortcut baselines (train -> dev) ...")
     summary["E8_baselines"] = e8_baselines(train, dev, out)
+    print("E9 feature-feature relationships (train) ...")
+    summary["E9_feature_relationships"] = e9_feature_relationships(train, out)
 
     table = findings(summary)
     out.mkdir(parents=True, exist_ok=True)
