@@ -1,0 +1,469 @@
+{
+  "dataset_version": "hhrlhf-v1.1",
+  "created_utc": "2026-10-26T18:21:36+00:00",
+  "pipeline_git_commit": "3b0cf2560ceb66673a88f1b393a2d67bb7ef9da0",
+  "hf_repo_id": "Anthropic/hh-rlhf",
+  "hf_revision": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
+  "library_versions": {
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "pyarrow": "23.0.1",
+    "gcsfs": "2025.12.0",
+    "requests": "2.32.4"
+  },
+  "steps": {
+    "step3_clean": {
+      "finished_utc": "2026-10-26T18:21:36+00:00",
+      "raw_files_sha256": {
+        "helpful-base/train.jsonl.gz": "518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4",
+        "helpful-base/test.jsonl.gz": "8be3fc1a13b27901631696f2be6f184c799f1baeaf145f53ac5db24960adc37b",
+        "harmless-base/train.jsonl.gz": "bf3e1ecd3db61bf21d190f69351d26670c67aababa0fd282fa008c17a7202217",
+        "harmless-base/test.jsonl.gz": "ebfaaed21162a4de120ae85366075b34425e2a6303fac59b99555002f7016f03",
+        "helpful-online/train.jsonl.gz": "0994d18b82083f5c084ce04071b683958a724df8c7215ab1d851986642d36a2a",
+        "helpful-online/test.jsonl.gz": "39a475cc7e0df972902f8e3a0972726fce826ac65369bda8c671de4330c60a10",
+        "helpful-rejection-sampled/train.jsonl.gz": "0cea2d2ab2187624ec1314e8cc6fb579f0fa987b3a33e8102b7556ed4d255f64",
+        "helpful-rejection-sampled/test.jsonl.gz": "abc35dbc56015db1dae0faa484514ccbc3eee0133bfcd557fc69250619b028bb"
+      },
+      "raw_pairs": {
+        "harmless-base/test": 2321,
+        "harmless-base/train": 42738,
+        "helpful-base/test": 2369,
+        "helpful-base/train": 44074,
+        "helpful-online/test": 1142,
+        "helpful-online/train": 22124,
+        "helpful-rejection-sampled/test": 2785,
+        "helpful-rejection-sampled/train": 53111
+      },
+      "unparseable_json_lines": 0,
+      "rows_dropped": {
+        "0_unparseable_json": 0,
+        "1_malformed_or_missing": 11,
+        "2_context_mismatch": 329,
+        "4a_empty_response": 194,
+        "4b_identical_responses": 788,
+        "4c_identical_after_pii_mask": 1,
+        "5_exact_duplicates": 0
+      },
+      "quarantine_reasons": {
+        "context_mismatch": 329,
+        "empty_reply": 194,
+        "identical_after_pii_mask": 1,
+        "identical_replies": 788,
+        "malformed_turns:chosen": 2,
+        "malformed_turns:rejected": 9
+      },
+      "quarantine_by_subset": {
+        "harmless-base": {
+          "context_mismatch": 155,
+          "empty_reply": 55
+        },
+        "helpful-base": {
+          "context_mismatch": 137,
+          "empty_reply": 54,
+          "identical_replies": 63
+        },
+        "helpful-online": {
+          "empty_reply": 65,
+          "identical_replies": 57,
+          "malformed_turns:chosen": 1,
+          "malformed_turns:rejected": 9
+        },
+        "helpful-rejection-sampled": {
+          "context_mismatch": 37,
+          "empty_reply": 20,
+          "identical_after_pii_mask": 1,
+          "identical_replies": 668,
+          "malformed_turns:chosen": 1
+        }
+      },
+      "pii_masking": {
+        "enabled": true,
+        "pairs_masked": {
+          "email": 304,
+          "phone": 724
+        },
+        "pairs_masked_by_subset": {
+          "email": {
+            "harmless-base": 160,
+            "helpful-base": 23,
+            "helpful-online": 109,
+            "helpful-rejection-sampled": 12
+          },
+          "phone": {
+            "harmless-base": 305,
+            "helpful-base": 58,
+            "helpful-online": 294,
+            "helpful-rejection-sampled": 67
+          }
+        }
+      },
+      "row_accounting": {
+        "rows_read": 169352,
+        "rows_kept": 168029,
+        "rows_quarantined": 1323,
+        "check": "passed: rows_read = rows_kept + rows_quarantined"
+      },
+      "quarantine_rate_by_file": {
+        "harmless-base/test.jsonl.gz": 0.0039,
+        "harmless-base/train.jsonl.gz": 0.0047,
+        "helpful-base/test.jsonl.gz": 0.0063,
+        "helpful-base/train.jsonl.gz": 0.0054,
+        "helpful-online/test.jsonl.gz": 0.0061,
+        "helpful-online/train.jsonl.gz": 0.0056,
+        "helpful-rejection-sampled/test.jsonl.gz": 0.0129,
+        "helpful-rejection-sampled/train.jsonl.gz": 0.013
+      },
+      "schema_by_file": {
+        "harmless-base/test.jsonl.gz": {
+          "chosen,rejected": 2312
+        },
+        "harmless-base/train.jsonl.gz": {
+          "chosen,rejected": 42537
+        },
+        "helpful-base/test.jsonl.gz": {
+          "chosen,rejected": 2354
+        },
+        "helpful-base/train.jsonl.gz": {
+          "chosen,rejected": 43835
+        },
+        "helpful-online/test.jsonl.gz": {
+          "chosen,rejected": 1137
+        },
+        "helpful-online/train.jsonl.gz": {
+          "chosen,rejected": 22007
+        },
+        "helpful-rejection-sampled/test.jsonl.gz": {
+          "chosen,rejected": 2749
+        },
+        "helpful-rejection-sampled/train.jsonl.gz": {
+          "chosen,rejected": 52421
+        }
+      },
+      "alerts": [],
+      "quarantine_file": {
+        "uri": "gs://bc-rlhf-reward-2026/quarantine/v1.1/quarantine.parquet",
+        "sha256": "d26aa8b9b4d27d0655f8e80dc2021cae7619f22d8af465259c0049c3c4bd0eaf",
+        "rows": 1323
+      },
+      "pairs_after_cleaning": 168029
+    },
+    "step4_quality_checks": {
+      "finished_utc": "2026-10-26T18:23:47+00:00",
+      "validation": {
+        "pair_id_unique": true,
+        "no_empty_replies": true,
+        "no_identical_replies": true,
+        "known_subsets_only": true,
+        "no_nulls": true,
+        "no_residual_pii_after_masking": true
+      },
+      "pii_scan": {
+        "email": {
+          "pairs": 0,
+          "by_subset": {
+            "harmless-base": 0,
+            "helpful-base": 0,
+            "helpful-online": 0,
+            "helpful-rejection-sampled": 0
+          }
+        },
+        "phone": {
+          "pairs": 0,
+          "by_subset": {
+            "harmless-base": 0,
+            "helpful-base": 0,
+            "helpful-online": 0,
+            "helpful-rejection-sampled": 0
+          }
+        }
+      },
+      "length_by_subset": {
+        "harmless-base": {
+          "pairs": 44639,
+          "median_words_chosen": 21.0,
+          "median_words_rejected": 26.0,
+          "share_chosen_longer": 0.4123
+        },
+        "helpful-base": {
+          "pairs": 45935,
+          "median_words_chosen": 32.0,
+          "median_words_rejected": 24.0,
+          "share_chosen_longer": 0.5799
+        },
+        "helpful-online": {
+          "pairs": 23012,
+          "median_words_chosen": 98.0,
+          "median_words_rejected": 103.0,
+          "share_chosen_longer": 0.4469
+        },
+        "helpful-rejection-sampled": {
+          "pairs": 54443,
+          "median_words_chosen": 55.0,
+          "median_words_rejected": 43.0,
+          "share_chosen_longer": 0.5615
+        }
+      },
+      "poison_screen": {
+        "flagged_ngrams": 0,
+        "flagged_pairs": 0,
+        "params": {
+          "ngram": 8,
+          "min_pairs": 20,
+          "one_sided_ratio": 0.9,
+          "max_report": 200,
+          "_comment": "flag word n-grams occurring one-sidedly (chosen vs rejected) in >= min_pairs pairs"
+        }
+      },
+      "files": {
+        "audit/poison_screen.csv": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.1/poison_screen.csv",
+          "sha256": "9029e1731a21cd43210bb2d7ae1dde8a8c78f42e2063ffdbfdcae801bd0187e0"
+        },
+        "audit/poison_flagged_pairs.csv": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.1/poison_flagged_pairs.csv",
+          "sha256": "4b0191604eb50fff0b4866e85ab14ac65aa88f3a60cf130535edc3e07cc474cd"
+        },
+        "audit/quality_report.json": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.1/quality_report.json",
+          "sha256": "8d94d8017a765167f4c99b7c9ebfb1c3c6a263763b1e2b1fc6fafa1cface44e6"
+        }
+      }
+    },
+    "step5_features": {
+      "finished_utc": "2026-10-26T18:26:07+00:00",
+      "group_rekeying": {
+        "max_group_size": 50,
+        "first_turn_groups_rekeyed": 0,
+        "pairs_rekeyed_on_full_context": 0
+      },
+      "groups": 61961,
+      "largest_group": 48,
+      "label_1_share": 0.4989
+    },
+    "step6_filter": {
+      "finished_utc": "2026-10-26T18:26:20+00:00",
+      "working_set_size_target": 30000,
+      "working_set_pairs": 30002,
+      "subset_quota": {
+        "harmless-base": 8015,
+        "helpful-base": 8213,
+        "helpful-online": 4106,
+        "helpful-rejection-sampled": 9666
+      },
+      "future_f1_pairs": 16516,
+      "future_f2_pairs": 16652,
+      "unused_pool_pairs": 104859
+    },
+    "step7_split": {
+      "finished_utc": "2026-10-26T18:27:47+00:00",
+      "leakage_check": "passed: every group_id is in exactly one split",
+      "train_fitted": {
+        "long_outlier_percentile": 99,
+        "long_outlier_threshold_words": 210.0
+      },
+      "splits": {
+        "train": {
+          "pairs": 24122,
+          "groups": 8894,
+          "subset_share": {
+            "harmless-base": 0.2666,
+            "helpful-base": 0.2753,
+            "helpful-online": 0.1375,
+            "helpful-rejection-sampled": 0.3206
+          },
+          "label_1_share": 0.4981,
+          "long_outlier_share": 0.018,
+          "refusal_any_share": 0.0225
+        },
+        "dev": {
+          "pairs": 2876,
+          "groups": 1074,
+          "subset_share": {
+            "harmless-base": 0.2889,
+            "helpful-base": 0.2514,
+            "helpful-online": 0.1238,
+            "helpful-rejection-sampled": 0.3359
+          },
+          "label_1_share": 0.517,
+          "long_outlier_share": 0.0219,
+          "refusal_any_share": 0.0226
+        },
+        "test": {
+          "pairs": 3004,
+          "groups": 1095,
+          "subset_share": {
+            "harmless-base": 0.2503,
+            "helpful-base": 0.2763,
+            "helpful-online": 0.1445,
+            "helpful-rejection-sampled": 0.3289
+          },
+          "label_1_share": 0.491,
+          "long_outlier_share": 0.0196,
+          "refusal_any_share": 0.026
+        },
+        "future_f1": {
+          "pairs": 16516,
+          "groups": 6141,
+          "subset_share": {
+            "harmless-base": 0.2611,
+            "helpful-base": 0.2722,
+            "helpful-online": 0.1366,
+            "helpful-rejection-sampled": 0.3301
+          },
+          "label_1_share": 0.4962,
+          "long_outlier_share": 0.019,
+          "refusal_any_share": 0.0211
+        },
+        "future_f2": {
+          "pairs": 16652,
+          "groups": 6130,
+          "subset_share": {
+            "harmless-base": 0.259,
+            "helpful-base": 0.2791,
+            "helpful-online": 0.1375,
+            "helpful-rejection-sampled": 0.3245
+          },
+          "label_1_share": 0.4999,
+          "long_outlier_share": 0.0201,
+          "refusal_any_share": 0.0228
+        }
+      },
+      "params": {
+        "tdt_salt": "tdt-v1",
+        "train_buckets": [
+          0,
+          8
+        ],
+        "dev_buckets": [
+          8,
+          9
+        ],
+        "test_buckets": [
+          9,
+          10
+        ]
+      }
+    },
+    "step8_shard": {
+      "finished_utc": "2026-10-26T18:27:58+00:00",
+      "enabled": false,
+      "reason": "single file is sufficient at this size"
+    },
+    "step9_store_processed": {
+      "finished_utc": "2026-10-26T18:28:31+00:00",
+      "final_validation": "passed",
+      "data_contract": {
+        "rules": 17,
+        "hard_violations": 0,
+        "warnings": 0,
+        "log": {
+          "uri": "gs://bc-rlhf-reward-2026/audit/v1.1/validation_log.csv",
+          "sha256": "f59e54aaa1159e35db55cec96561ca726d87dd9dbd56e0a2f51b2b2cff98c15e"
+        }
+      },
+      "files": {
+        "train": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.1/train.parquet",
+          "sha256": "fec41a9d9feea413630079482fc5ad053873f51c4954c6c46c3a392d6a808a5e",
+          "bytes": 20116387,
+          "rows": 24122
+        },
+        "dev": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.1/dev.parquet",
+          "sha256": "44215d023103d1f22dafb35c79f9a60a51073f801f645a9a0b8d73d237b36f35",
+          "bytes": 2312727,
+          "rows": 2876
+        },
+        "test": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/test.parquet",
+          "sha256": "6a386c728e2f5ca5e74c741d3b088f7492688f375831377e1a53834046166330",
+          "bytes": 2454350,
+          "rows": 3004
+        },
+        "future_f1": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/future_f1.parquet",
+          "sha256": "7cf2cb82cc38c4d289e3cb0c9256e6d7ed52a0719287d3c833137cb65a5d4c19",
+          "bytes": 13821809,
+          "rows": 16516
+        },
+        "future_f2": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/future_f2.parquet",
+          "sha256": "ce8f1ce8fe492c9b3bea9080ba977a6ef6924941a6d81fc29d2a6b3f966313d1",
+          "bytes": 13996879,
+          "rows": 16652
+        }
+      }
+    },
+    "step10_review_sample": {
+      "finished_utc": "2026-10-26T18:29:10+00:00",
+      "sheet": "label_review_v1.1.csv",
+      "status": "written",
+      "sample_size": 200
+    },
+    "step11_model_inputs": {
+      "finished_utc": "2026-10-26T18:29:43+00:00",
+      "train_fitted_scaler": {
+        "fitted_on": "train",
+        "rows": 24122,
+        "features": [
+          "num_log_len_a",
+          "num_log_len_b",
+          "num_log_len_ratio",
+          "num_log_turns",
+          "num_log_context_words"
+        ],
+        "mean": [
+          3.574996,
+          3.573217,
+          0.001779,
+          1.140492,
+          4.091131
+        ],
+        "sd": [
+          1.006221,
+          1.006642,
+          1.011496,
+          0.361367,
+          1.212836
+        ],
+        "max_context_words": 256
+      },
+      "scaler_file": {
+        "uri": "gs://bc-rlhf-reward-2026/processed/v1.1/model_inputs/numeric_scaler.json",
+        "sha256": "0f737f110231d43a235999cd2d9438379627671e8c095f0cb4d7e5466bb39534"
+      },
+      "files": {
+        "train": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.1/model_inputs/train.parquet",
+          "sha256": "d57aed451d3babed6286e28d9a9d5300cd3872fc634e2dfb9e64104a5fa3a935",
+          "rows": 24122,
+          "context_truncated_share": 0.0973
+        },
+        "dev": {
+          "uri": "gs://bc-rlhf-reward-2026/processed/v1.1/model_inputs/dev.parquet",
+          "sha256": "e366d7ff49fd2d307a54c0aeaa46b7db36737dacf65b498136eba403eab580cc",
+          "rows": 2876,
+          "context_truncated_share": 0.0834
+        },
+        "test": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/model_inputs/test.parquet",
+          "sha256": "dca29df655d03f2597e5d5b018160b7cb09d9fd930d93386e47909d7e0e75cd4",
+          "rows": 3004,
+          "context_truncated_share": 0.0952
+        },
+        "future_f1": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/model_inputs/future_f1.parquet",
+          "sha256": "5bb71b67e438c866b8387a97c948a978e349f7359cb4da0b1e4368ace324f549",
+          "rows": 16516,
+          "context_truncated_share": 0.0987
+        },
+        "future_f2": {
+          "uri": "gs://bc-rlhf-reward-2026-holdout/v1.1/model_inputs/future_f2.parquet",
+          "sha256": "82f5b7cad07f6bb16a133ca840076ec05c0e45d77fcb3662afc09b39a4179b79",
+          "rows": 16652,
+          "context_truncated_share": 0.0984
+        }
+      }
+    }
+  }
+}
