@@ -116,6 +116,10 @@ The data split, storage and access design from Milestone 1 are **unchanged** (sa
 | Reconciliation | all 7 independent checks agree |
 | EDA | 9 figures + 13 findings in `docs/eda/` |
 | Cross-validation (Lecture 5) | length × subset (ColumnTransformer pipeline): 56.9% random-row vs 56.7% group 5-fold CV, 57.9% dev; bag of words: 54.9% vs 54.9%, 54.8% dev |
+| Storage (Colab run, 26 Oct 2026) | train/dev, model inputs, quarantine and audit files in `gs://bc-rlhf-reward-2026` (Standard); test/F1/F2 and their model inputs only in `gs://bc-rlhf-reward-2026-holdout` (Coldline); manifest committed as `manifests/v1.1.json`, tag `data-v1.1` |
+
+![Buckets after the v1.1 run](docs/img/m2_buckets_v1.1.png)
+*The two buckets after the v1.1 Colab run: (a) processed/v1.1, (b) quarantine/v1.1, (c) audit/v1.1 with `validation_log.csv` and `reconciliation.json`, (d) the Coldline holdout bucket.*
 
 ---
 
@@ -187,6 +191,7 @@ manifests/                   dataset manifests (lineage: checksums, counts, code
 docs/eda/                    EDA outputs (aggregates only, no dataset text)
 docs/DATASHEET.md            datasheet for the processed v1.1 data
 docs/architecture_m2.html    source of docs/img/architecture_m2.png
+docs/img/m2_bucket*_v1.1.png bucket screenshots after the v1.1 Colab run
 scripts/setup_gcs.sh         one-off bucket / IAM setup (from M1)
 .github/workflows/ci.yml     tests + offline demo on every push
 ```
