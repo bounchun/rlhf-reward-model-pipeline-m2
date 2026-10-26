@@ -1,0 +1,4 @@
+# Optional: only for src/beam_validate.py (Lecture 6, Apache Beam), not for the main pipeline.
+#   pip install -r requirements.txt -r requirements-beam.txt
+# Same Beam version as the Lecture 6 demo; tested with the pins in requirements.txt (pip check: OK).
+apache-beam==2.77.0

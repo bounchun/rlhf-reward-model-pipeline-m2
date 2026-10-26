@@ -9,7 +9,7 @@ PREPROCESS = step3_clean step4_quality_checks step5_features step6_filter \
              step7_split step8_shard step9_store_processed step10_review_sample \
              step11_model_inputs
 
-.PHONY: install all scrape store preprocess queries reconcile eda review-score readme test demo clean-demo
+.PHONY: install all scrape store preprocess queries reconcile eda beam review-score readme test demo clean-demo
 
 install:
 	$(PY) -m pip install -r requirements.txt
@@ -36,6 +36,11 @@ queries:
 ## Second, independent method: recount from the raw files and compare with the stored outputs
 reconcile:
 	$(PY) -m src.reconcile --config $(CONFIG)
+
+## Optional (Lecture 6): the step 3 data contract as an Apache Beam pipeline (DirectRunner),
+## compared count by count with step 3. Needs: pip install -r requirements-beam.txt
+beam:
+	$(PY) -m src.beam_validate --config $(CONFIG)
 
 ## Milestone 2 EDA: figures + findings table in docs/eda/ (needs the interim and processed files)
 eda:

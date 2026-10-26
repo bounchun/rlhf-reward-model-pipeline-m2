@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - name: Install pinned dependencies
-        run: pip install -r requirements.txt
+      - name: Install pinned dependencies (incl. optional Apache Beam, so the Beam test runs too)
+        run: pip install -r requirements.txt -r requirements-beam.txt
       - name: Unit tests
         run: make test
       - name: Offline end-to-end demo

@@ -9,6 +9,7 @@ Storage is forced to local folders (DHAI_BUCKET="") even in Colab with Secrets s
 from __future__ import annotations
 
 import gzip
+import importlib.util
 import json
 import os
 import shutil
@@ -20,7 +21,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 
-from src import contract, eda, reconcile, step11_model_inputs
+from src import beam_validate, contract, eda, reconcile, step11_model_inputs
 from src import (sample_queries, score_review, step1_scrape_raw, step2_store_raw, step3_clean, step4_quality_checks, step5_features,
                  step6_filter, step7_split, step8_shard, step9_store_processed, step10_review_sample)
 from src.common import OUTPUT_COLUMNS, REPO_ROOT, SPLITS, sha256_bytes
@@ -236,6 +237,53 @@ class TestDataContractAndQuarantine(unittest.TestCase):
         self.assertEqual(set(failed["rule"]), {"label is 0 or 1", "replies A and B differ",
                                                "no group_id in two splits",
                                                "no e-mail or phone pattern left in the text"})
+
+
+class TestMonitoringAndBeam(unittest.TestCase):
+    """Lecture 6: count and alert (schema drift, reject rate); same contract on Apache Beam."""
+
+    def test_schema_and_quarantine_rate_recorded_per_file(self):
+        s3 = steps()["step3_clean"]
+        self.assertEqual(len(s3["schema_by_file"]), 8)
+        for shapes in s3["schema_by_file"].values():
+            self.assertEqual(set(shapes), {"chosen,rejected"})
+        self.assertEqual(len(s3["quarantine_rate_by_file"]), 8)
+
+    def test_alerts_for_schema_drift_and_reject_spike(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d)
+            shutil.copytree(RUN["base"], base, dirs_exist_ok=True)
+            cfg_path = fake_data.write_config(base / "config.json", base, WS)
+            cfg = json.loads(cfg_path.read_text())
+            cfg["alerts"]["max_quarantine_rate_per_file"] = 0.0           # any rejected row raises an alert
+            cfg_path.write_text(json.dumps(cfg))
+            # a new upstream field appears in one file (schema drift); keep the raw manifest consistent
+            target = base / "lake/raw/hh-rlhf/demo/helpful-base/train.jsonl.gz"
+            lines = gzip.decompress(target.read_bytes()).decode().splitlines()
+            rec = json.loads(lines[0]); rec["annotator_id"] = "w1"; lines[0] = json.dumps(rec)
+            data = gzip.compress(("\n".join(lines) + "\n").encode(), mtime=0)
+            target.write_bytes(data)
+            raw_m = base / "manifests/raw-demo.json"
+            m = json.loads(raw_m.read_text()); m["files"]["helpful-base/train.jsonl.gz"]["sha256"] = sha256_bytes(data)
+            raw_m.write_text(json.dumps(m))
+            with mock.patch.dict(os.environ, LOCAL):
+                step3_clean.main(["--config", str(cfg_path)])
+            alerts = json.loads((base / f"manifests/{V}.json").read_text())["steps"]["step3_clean"]["alerts"]
+            self.assertTrue(any("quarantine rate" in a for a in alerts))
+            self.assertTrue(any("unexpected JSON fields" in a and "annotator_id" in a for a in alerts))
+            cfg["alerts"]["fail_on_alert"] = True
+            cfg_path.write_text(json.dumps(cfg))
+            with mock.patch.dict(os.environ, LOCAL), self.assertRaisesRegex(SystemExit, "alert"):
+                step3_clean.main(["--config", str(cfg_path)])
+
+    @unittest.skipUnless(importlib.util.find_spec("apache_beam"), "apache-beam not installed (requirements-beam.txt)")
+    def test_beam_pipeline_agrees_with_pandas_step3(self):
+        cfg = json.loads(RUN["cfg_path"].read_text())
+        glob_ = str(RUN["base"] / "downloads" / "demo" / "*" / "*.jsonl.gz")
+        counters = beam_validate.run(cfg, glob_, RUN["base"] / "beam_out", ["--runner", "DirectRunner"])
+        cmp = beam_validate.compare(counters, RUN["manifest"])
+        self.assertTrue(all(c["agree"] for c in cmp.values()), cmp)
+        self.assertEqual(counters["bad:bad_json"], 8)
 
 
 class TestStep4QualityChecks(unittest.TestCase):
