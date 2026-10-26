@@ -16,6 +16,9 @@ Which rows each analysis may look at (Lecture 5 slide 39, "split before learning
   E10    INFERENCE (Lecture 4): group bootstrap that resamples prompt groups, not rows; replication
          of the train findings on held-out dev; Benjamini-Hochberg over every test; precision that
          per-subset test accuracy can reach in M3.
+  E11    CROSS-VALIDATION (Lecture 5): two scikit-learn Pipelines (a ColumnTransformer length x subset
+         model and a bag-of-words model fitted inside each fold) scored with random-row folds and with
+         GroupKFold on prompt groups; then fitted on train and scored once on dev.
 
 Inputs : <interim_dir>/<version>/features.parquet           (all cleaned pairs, from step 5)
          <main_root>/quarantine/<version>/quarantine.parquet (from step 3)
@@ -45,9 +48,13 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from scipy.stats import chi2_contingency  # noqa: E402
+from sklearn.base import BaseEstimator, TransformerMixin  # noqa: E402
+from sklearn.compose import ColumnTransformer  # noqa: E402
+from sklearn.feature_extraction.text import TfidfVectorizer  # noqa: E402
 from sklearn.linear_model import LogisticRegression  # noqa: E402
+from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_val_score  # noqa: E402
 from sklearn.pipeline import Pipeline  # noqa: E402
-from sklearn.preprocessing import StandardScaler  # noqa: E402
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, PolynomialFeatures, StandardScaler  # noqa: E402
 
 from .common import (interim, join, local_path, manifest_path, read_parquet, require, step_args, storage_roots,
                      write_bytes)
@@ -659,6 +666,90 @@ def e10_inference(train: pd.DataFrame, dev: pd.DataFrame, s: dict, manifest: dic
             "dev_accuracy_per_subset_length_model": acc}
 
 
+# ----------------------------------------------------------------------------- E11 leakage-safe cross-validation (Lecture 5)
+class PairTfidfDiff(BaseEstimator, TransformerMixin):
+    """Bag-of-words features for a pair: tfidf(reply A) - tfidf(reply B).
+
+    The vocabulary and IDF weights are learned in fit(), i.e. only on the training fold when the
+    transformer sits inside a Pipeline (Lecture 5 slides 41 and 46: fit preprocessing on train only)."""
+
+    def __init__(self, min_df: int = 3, max_features: int = 50000):
+        self.min_df, self.max_features = min_df, max_features
+
+    def fit(self, X, y=None):
+        self.vec_ = TfidfVectorizer(min_df=self.min_df, max_features=self.max_features, sublinear_tf=True,
+                                    ngram_range=(1, 2), dtype=np.float32)
+        self.vec_.fit(pd.concat([X["response_a"], X["response_b"]]))
+        return self
+
+    def transform(self, X):
+        return self.vec_.transform(X["response_a"]) - self.vec_.transform(X["response_b"])
+
+
+def length_subset_pipeline() -> Pipeline:
+    """Shortcut model as ONE scikit-learn object: log lengths (scaled) x subset one-hot interactions."""
+    num = Pipeline([("log", FunctionTransformer(np.log1p, feature_names_out="one-to-one")), ("scale", StandardScaler())])
+    prep = ColumnTransformer([("num", num, ["len_a_words", "len_b_words", "num_turns"]),
+                              ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), ["subset"])])
+    return Pipeline([("prep", prep), ("inter", PolynomialFeatures(2, interaction_only=True, include_bias=False)),
+                     ("clf", LogisticRegression(max_iter=2000))])
+
+
+def text_pipeline() -> Pipeline:
+    return Pipeline([("tfidf", PairTfidfDiff()), ("clf", LogisticRegression(max_iter=2000, C=1.0))])
+
+
+def e11_cross_validation(train: pd.DataFrame, dev: pd.DataFrame, cfg_eda: dict, out: Path) -> dict:
+    """Same models, two ways of building the folds: random rows vs whole prompt groups (GroupKFold).
+
+    If rows sharing a prompt also share text, row-level folds leak it and look better than they
+    should (Lecture 5 slide 36: "random splits leak"; GroupKFold when rows share an entity)."""
+    k = int(cfg_eda["cv_folds"])
+    x, y, g = train, train["label"].to_numpy(), train["group_id"].to_numpy()
+    schemes = {"random rows (StratifiedKFold)": dict(cv=StratifiedKFold(k, shuffle=True, random_state=cfg_eda["seed"])),
+               "prompt groups (GroupKFold)": dict(cv=GroupKFold(k), groups=g)}
+    models = {"length x subset (ColumnTransformer)": length_subset_pipeline, "bag of words, reply A - reply B": text_pipeline}
+    res = {"folds": k, "cv": {}, "dev": {}}
+    for mname, make in models.items():
+        res["cv"][mname] = {}
+        for sname, kw in schemes.items():
+            sc = cross_val_score(make(), x, y, scoring="accuracy", **kw)
+            res["cv"][mname][sname] = {"mean": round(float(sc.mean()), 4), "sd": round(float(sc.std()), 4),
+                                       "folds": [round(float(v), 4) for v in sc]}
+        model = make().fit(x, y)                                        # fit on ALL train, score on dev once
+        pred = model.predict(dev)
+        res["dev"][mname] = rate(int((pred == dev["label"].to_numpy()).sum()), len(dev))
+        res["dev"][mname]["by_subset"] = {
+            sub: rate(int((pred[(dev["subset"] == sub).to_numpy()] == dev["label"].to_numpy()[(dev["subset"] == sub).to_numpy()]).sum()),
+                      int((dev["subset"] == sub).sum())) for sub in SUBSETS}
+    gaps = {m: round(v["random rows (StratifiedKFold)"]["mean"] - v["prompt groups (GroupKFold)"]["mean"], 4)
+            for m, v in res["cv"].items()}
+    res["row_minus_group_cv_gap"] = gaps
+
+    fig, ax = plt.subplots(figsize=(8.6, 3.2))
+    names = list(models)
+    for j, sname in enumerate(schemes):
+        means = [res["cv"][m][sname]["mean"] for m in names]
+        sds = [res["cv"][m][sname]["sd"] for m in names]
+        xs = np.arange(len(names)) + (j - 0.5) * 0.36
+        ax.bar(xs, means, width=0.33, yerr=sds, capsize=3, ecolor=INK2, color=["#2a78d6", "#eb6834"][j], label=sname)
+        for xx, mv, sd in zip(xs, means, sds):
+            ax.text(xx, mv + sd + 0.006, f"{mv:.1%}", ha="center", fontsize=8, color=INK)
+    for i, m in enumerate(names):
+        ax.plot(i + 0.33, res["dev"][m]["rate"], "D", color=INK, markersize=6)
+        ax.text(i + 0.4, res["dev"][m]["rate"], f"dev {res['dev'][m]['rate']:.1%}", va="center", fontsize=8, color=INK2)
+    ax.axhline(0.5, color=NEUTRAL, linewidth=1)
+    ax.set_xticks(range(len(names)), names)
+    ax.set_xlim(-0.6, len(names) - 0.2)
+    ax.set_ylim(0.45, max(0.7, ax.get_ylim()[1]))
+    style(ax, "", "", f"{k}-fold CV accuracy on train (± SD)")
+    ax.legend(frameon=False, fontsize=8, loc="upper left")
+    fig.suptitle("Fig. 9  Cross-validation with random-row folds vs prompt-group folds; diamonds: fitted on train, scored on dev",
+                 x=0.01, ha="left", fontsize=10, color=INK2)
+    res["figure"] = save(fig, out, "fig9_cross_validation.png")
+    return res
+
+
 # ----------------------------------------------------------------------------- findings table
 def findings(s: dict) -> pd.DataFrame:
     e1, e2, e3, e4, e8, e9 = s["E1_raw_problems"], s["E2_duplicates_leakage"], s["E3_distributions"], \
@@ -697,6 +788,12 @@ def findings(s: dict) -> pd.DataFrame:
          "Report group-bootstrap intervals (resampling prompt groups) for M3 test accuracy, not row-level intervals",
          f"Per-subset test accuracy will only be known to about +/-"
          f"{max(v['ci95_half_width_at_60pct'] for v in s['E10_inference']['test_precision_per_subset'].values()):.0%}"),
+        (f"Random-row and prompt-group 5-fold CV agree (gap "
+         f"{max(abs(v) for v in s['E11_cross_validation']['row_minus_group_cv_gap'].values()):.1%}) for the length x subset "
+         f"and bag-of-words models; group folds vary more between folds; dev: "
+         + ", ".join(f"{m.split(' (')[0]} {v['rate']:.1%}" for m, v in s['E11_cross_validation']['dev'].items()),
+         "Use GroupKFold for any cross-validation in M3; the bag-of-words model is the first text baseline",
+         "No leak for reply-only features; a model that reads the prompt could still memorise it"),
         (f"{e3['context_over_max_words']['rate']:.1%} of train contexts exceed {e3['max_context_words_setting']} words",
          f"Model inputs keep the last {e3['max_context_words_setting']} words of the context (step 11, left truncation)",
          "Early turns are lost for long conversations"),
@@ -766,6 +863,8 @@ def main(argv: list[str] | None = None) -> None:
     summary["E9_feature_relationships"] = e9_feature_relationships(train, out)
     print("E10 inference: group bootstrap, dev confirmation, multiple testing, precision (Week 4) ...")
     summary["E10_inference"] = e10_inference(train, dev, summary, manifest, eda_cfg, correct_dev, out)
+    print("E11 cross-validation: random-row vs prompt-group folds (Lecture 5) ...")
+    summary["E11_cross_validation"] = e11_cross_validation(train, dev, eda_cfg, out)
 
     table = findings(summary)
     out.mkdir(parents=True, exist_ok=True)

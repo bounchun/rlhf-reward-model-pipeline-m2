@@ -439,7 +439,7 @@ class TestReconcileAndEDA(unittest.TestCase):
             eda.main(["--config", str(RUN["cfg_path"])])
         self.assertFalse([u for u in seen if "holdout" in u])
         out = RUN["base"] / "eda"
-        self.assertEqual(len(list(out.glob("fig*.png"))), 8)
+        self.assertEqual(len(list(out.glob("fig*.png"))), 9)
         f = pd.read_csv(out / "findings.csv")
         self.assertEqual(list(f.columns), ["finding", "decision", "limitation"])
         self.assertGreaterEqual(len(f), 8)
@@ -464,6 +464,16 @@ class TestWeek4Statistics(unittest.TestCase):
         self.assertAlmostEqual(adj["b"], 0.0533, places=3)
         self.assertAlmostEqual(adj["c"], 0.0533, places=3)
         self.assertAlmostEqual(adj["d"], 0.20)
+
+    def test_text_features_are_learned_on_the_training_fold_only(self):
+        tr = pd.DataFrame({"response_a": ["alpha beta", "alpha gamma", "beta gamma"] * 3,
+                           "response_b": ["gamma", "beta", "alpha"] * 3})
+        te = pd.DataFrame({"response_a": ["zeta unseen words"], "response_b": ["alpha"]})
+        t = eda.PairTfidfDiff(min_df=1).fit(tr)
+        self.assertNotIn("zeta", t.vec_.vocabulary_)                # test words never enter the vocabulary
+        self.assertEqual(t.transform(te).shape[1], len(t.vec_.vocabulary_))
+        x = t.transform(pd.DataFrame({"response_a": ["alpha beta"], "response_b": ["alpha beta"]}))
+        self.assertEqual(abs(x).sum(), 0)                           # identical replies -> zero vector
 
     def test_wilson_interval(self):
         lo, hi = eda.wilson(119, 491)                              # Lecture 5: 3rd class 20.7%-28.2%
