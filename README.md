@@ -17,7 +17,7 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 | Validation that fails loudly | `src/contract.py` holds two data contracts. The raw contract runs in step 3: any row that fails is moved to a quarantine file, along with the reason, the source file and the line number. The processed contract runs in step 9 and checks  17 rules, logging the results to `audit/v1.1/validation_log.csv`. If a HARD rule fails, the pipeline stops before anything gets uploaded. |
 | Cleaning and transformation | In step 3 the text gets normalised, PII is masked, and anything broken is quarantined (there are 7 reasons a row can end up there). Step 5 does the A/B swap and builds the features. Step 7 adds an outlier flag, using thresholds fitted on the training set only. Step 11 gets everything ready for the model: contexts are cut from the left, and the log-length features are scaled with the training mean and standard deviation.|
 | Second method / reconciliation | `src/reconcile.py` (run it with `make reconcile`) recounts everything straight from the raw files using plain Python, independently of the pipeline. Its numbers have to match the pipeline’s on all 7 checks.|
-| Reproducibility | pinned data commit and libraries, hash-based splits, byte-identical reruns (tested), 43 tests and an offline demo run on every push by GitHub Actions (`.github/workflows/ci.yml`) |
+| Reproducibility | The data commit and library versions are pinned, and the splits are hash-based, so rerunning the pipeline gives byte-identical output (there’s a test for this). On every push, GitHub Actions runs the 43 tests and an offline demo (see .github/workflows/ci.yml).|
 | Changes since v1.0 | [M2.3](#m23-changes-since-v10-and-why) |
 
 ### M2.1 Pipeline architecture
