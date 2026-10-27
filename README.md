@@ -13,7 +13,7 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 | Milestone 2 requirement | Where it is |
 |---|---|
 | EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.2](#m22-what-the-eda-found-and-what-it-changed) |
-| Pipeline: acquire → validate → store → transform | Steps 1–11 (`make all`), diagram in [M2.1](#m21-pipeline-architecture) |
+| Pipeline: acquire → validate → store → transform | Steps 1–11, run with (`make all`). The full pipeline is laid out in [M2.1](#m21-pipeline-architecture) |
 | Validation that fails loudly | `src/contract.py`: raw contract in step 3 (bad rows go to a quarantine with reason, file and line), 17-rule processed contract in step 9 (`audit/v1.1/validation_log.csv`; a HARD violation stops the run before anything is uploaded) |
 | Cleaning and transformation | step 3 (normalise, PII masking, 7 quarantine reasons), step 5 (A/B swap, features), step 7 (train-fitted outlier flag), step 11 (model-ready inputs: left-truncated contexts, log-length features scaled with the train mean/SD) |
 | Second method / reconciliation | `src/reconcile.py` (`make reconcile`): recounts everything from the raw files with plain Python; 7 checks must agree |
