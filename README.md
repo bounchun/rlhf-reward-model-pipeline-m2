@@ -23,7 +23,7 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 ### M2.1 Pipeline architecture
 
 ```text
-make all  (Colab or local · steps run top to bottom · each logs to manifests/v1.1.json)
+make all  (Colab or locally · runs the steps in order, top to bottom, and each step writes its log to manifests/v1.1.json).
 │
 ├── 1 SOURCE  (manual, once)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
