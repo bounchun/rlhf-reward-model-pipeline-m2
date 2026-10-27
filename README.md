@@ -14,7 +14,7 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 |---|---|
 | EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.2](#m22-what-the-eda-found-and-what-it-changed) |
 | Pipeline: acquire → validate → store → transform | Steps 1–11, run with (`make all`). The full pipeline is laid out in [M2.1](#m21-pipeline-architecture) |
-| Validation that fails loudly | `src/contract.py`: raw contract in step 3 (bad rows go to a quarantine with reason, file and line), 17-rule processed contract in step 9 (`audit/v1.1/validation_log.csv`; a HARD violation stops the run before anything is uploaded) |
+| Validation that fails loudly | `src/contract.py` holds two data contracts. The raw contract runs in step 3: any row that fails is moved to a quarantine file, along with the reason, the source file and the line number. The processed contract runs in step 9 and checks  17 rules, logging the results to `audit/v1.1/validation_log.csv`. If a HARD rule fails, the pipeline stops before anything gets uploaded. |
 | Cleaning and transformation | step 3 (normalise, PII masking, 7 quarantine reasons), step 5 (A/B swap, features), step 7 (train-fitted outlier flag), step 11 (model-ready inputs: left-truncated contexts, log-length features scaled with the train mean/SD) |
 | Second method / reconciliation | `src/reconcile.py` (`make reconcile`): recounts everything from the raw files with plain Python; 7 checks must agree |
 | Reproducibility | pinned data commit and libraries, hash-based splits, byte-identical reruns (tested), 43 tests and an offline demo run on every push by GitHub Actions (`.github/workflows/ci.yml`) |
