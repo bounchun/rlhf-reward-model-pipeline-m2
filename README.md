@@ -31,7 +31,9 @@ make all  (Colab or locally · runs the steps in order, top to bottom, and each 
 │                                  2 service accounts (pipeline `pipeline-sa` + training `train-sa`) 
 │
 ├── 2 INGEST
-│   ├── step1_scrape_raw           8 files over HTTPS ─────────────▶ data/downloads/ + SHA-256
+│   ├── step1_scrape_raw           Fetches 8 raw files (train + test for `harmless-base`, `helpful-base`,
+│   │                              `helpful-online`, helpful-rejection-sampled`)
+│   │                              over HTTPS into `data/downloads/`, and checks each against its pinned SHA-256 hash.
 │   └── step2_store_raw            upload, read back, verify ──────▶ main bucket: raw/
 │
 ├── 3 VALIDATE
