@@ -27,7 +27,8 @@ make all  (Colab or locally · runs the steps in order, top to bottom, and each 
 │
 ├── 1 SOURCE  (manual, once)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
-│   └── setup_gcs.sh               2 buckets, versioning, lifecycle, 2 service accounts
+│   └── setup_gcs.sh               creates 2 buckets (versioning + lifecycle),
+│                                  2 service accounts (pipeline `pipeline-sa` + training `train-sa`) 
 │
 ├── 2 INGEST
 │   ├── step1_scrape_raw           8 files over HTTPS ─────────────▶ data/downloads/ + SHA-256
