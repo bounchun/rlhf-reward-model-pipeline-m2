@@ -34,7 +34,8 @@ make all  (Colab or locally · runs the steps in order, top to bottom, and each 
 │   ├── step1_scrape_raw           Fetches 8 raw files (train + test for `harmless-base`, `helpful-base`,
 │   │                              `helpful-online`, helpful-rejection-sampled`)
 │   │                              over HTTPS into `data/downloads/`, and checks each against its pinned SHA-256 hash.
-│   └── step2_store_raw            Uploads raw files to `raw/` in the main bucket, then reads them back to check they arrived intact.
+│   └── step2_store_raw            Uploads raw files to `raw/` in the main bucket,
+│                                  then reads them back to check they arrived intact.
 │
 ├── 3 VALIDATE
 │   ├── step3_clean                raw data contract, PII masking
