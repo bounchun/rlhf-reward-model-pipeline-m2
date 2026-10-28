@@ -23,7 +23,8 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 ### M2.1 Pipeline architecture
 
 ```text
-make all  (Colab or locally · runs the steps in order, top to bottom, and each step writes its log to manifests/v1.1.json).
+make all  (Colab or locally · runs the steps in order, top to bottom,
+│          and each step writes its log to manifests/v1.1.json).
 │
 ├── 1 SOURCE  (manual, once)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
@@ -31,8 +32,8 @@ make all  (Colab or locally · runs the steps in order, top to bottom, and each 
 │                                  2 service accounts (pipeline `pipeline-sa` + training `train-sa`) 
 │
 ├── 2 INGEST
-│   ├── step1_scrape_raw           Fetches 8 raw files (train + test for `harmless-base`, `helpful-base`,
-│   │                              `helpful-online`, helpful-rejection-sampled`)
+│   ├── step1_scrape_raw           Fetches 8 raw files (train + test for `harmless-base`,
+│   │                              `helpful-base`, `helpful-online`, helpful-rejection-sampled`) 
 │   │                              over HTTPS into `data/downloads/`, and checks each against its pinned SHA-256 hash.
 │   └── step2_store_raw            Uploads raw files to `raw/` in the main bucket,
 │                                  then reads them back to check they arrived intact.
