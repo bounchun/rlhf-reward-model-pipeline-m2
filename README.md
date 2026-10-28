@@ -75,7 +75,7 @@ gs://bc-rlhf-reward-2026-holdout              (Coldline · training account has 
 
 ```
 
-**ETL, not ELT.** The transformations (parsing conversations, the A/B swap, hashing groups, masking PII) are Python code, not SQL, and the whole dataset is 79 MB of raw files, so the work runs in one Python process (about 2½ minutes for steps 1–11) and only the cleaned Parquet files are loaded into storage. The raw layer is kept untouched (write-once, versioned bucket), so the main advantage of ELT — fixing a rule and re-running from the raw data — is kept too. Apache Beam / Dataflow (Lecture 6) would add cost and machinery without any benefit at this size; the pipeline still follows the same ideas: a data contract per row, a quarantine with reasons, counters, idempotent reruns and a reconciliation.
+**ETL, not ELT.** All the transformations (parsing the conversations, swapping A and B, hashing the groups and masking personal data) are written in Python rather than SQL. The raw files only add up to 79 MB, so everything runs in a single Python process, which takes about 2½ minutes for steps 1 to 11. Only the cleaned Parquet files get loaded into storage. The raw files are still kept as they are, in a write-once, versioned bucket, so I can still do what ELT is good for: change a rule and rerun everything from the raw data. I looked at Apache Beam and Dataflow (Lecture 6), but at this size they would cost more and add extra setup for no real gain. The pipeline still uses the same ideas, though: every row is checked against a data contract, rejected rows go to quarantine with a reason, each step keeps counts, reruns give the same result, and an independent recount checks the final numbers.
 
 ### M2.2 What the EDA found, and what it changed
 
