@@ -28,7 +28,7 @@ This datasheet follows the questions in Gebru et al. (2021), *Datasheets for Dat
 ## 3. Collection process
 
 - **Upstream collection.** Crowdworkers (mostly US-based MTurk, some Upwork) talked to Anthropic's 52B language models and chose the better of two replies at each turn, in three rounds: base, rejection-sampled, online (Bai et al. 2022).
-- **Acquisition in this project.** `src/step1_scrape_raw.py` downloads 8 files at a pinned commit, with retries, and records their SHA-256 checksums. For the v1.1 run, the identical files were taken from Anthropic's GitHub release of the same dataset; all 8 checksums matched.
+- **Acquisition in this project.** `src/step1_scrape_raw.py` downloads 8 files at a pinned commit, with retries, and records their SHA-256 checksums. The files were downloaded from Hugging Face on 1 October 2026 (Milestone 1) and stored write-once in `raw/`; the v1.1 Colab run read them from there after re-checking all 8 checksums. A development test run used Anthropic's own GitHub release of the same files instead, and all 8 checksums matched.
 - **Sampling strategy.** Whole prompt groups, ordered by `sha256(group_id + salt)`, with quotas per subset.
 - **Time frame.** Collected 2021–22, so the replies reflect 2021 model behaviour. Processed in October 2026.
 - **Ethical review / consent.** Not documented in the release for the crowdworkers. Crowdworkers were paid. This project adds no new human data.

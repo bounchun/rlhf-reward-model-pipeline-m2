@@ -1,4 +1,4 @@
-# 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 2
+# 👍👎 Response Preference Prediction (RLHF Reward Modelling) — Milestone 2
 
 This is Milestone 2 of my Data Handling and Infrastructure for AI project. It picks up where Milestone 1 left off, in [bounchun/rlhf-reward-model-pipeline-m1](https://github.com/bounchun/rlhf-reward-model-pipeline-m1) (release `data-v1.0`), and the full commit history came across with it, so you can trace how the project got from M1 to M2. This README is self-contained: you do not need the M1 report to follow it.
 
@@ -255,25 +255,28 @@ The data split is **unchanged** (same salts), and so are the two buckets and the
 
 ### M2.6 Limitations and reflection
 
+The same limitations and reflection are in the report (section 7).
+
 **Limitations**
 
-| Limitation | Effect | What would fix it |
+| Limitation | Effect | What would address it |
 |---|---|---|
-| The Colab run uses my own Google login, not `pipeline-sa` | The service accounts and their IAM roles are configured, but the run did not exercise them, so "the training account cannot read the holdout bucket" is set up, not tested | Run the pipeline and a training read as the service accounts (e.g. with impersonation) and record the expected `403` on the holdout bucket |
-| No timestamps in hh-rlhf | F1/F2 are held-out groups, not truly later data; they cannot measure drift over time | A dataset with collection dates, or new preference data collected later |
-| The test set represents this collection process | Results will describe crowdworkers on these four subsets, not real users | Evaluate on a differently collected preference set |
-| Single-machine processing | Fine at 79 MB; Beam runs locally but was not tested on Dataflow | Run `beam_validate.py` with `DataflowRunner` if the data grows |
+| The Colab run signs in with my own Google account, not `pipeline-sa` | The service-account roles are configured but were not exercised, so "the training account cannot read the holdout bucket" is set up, not tested | Run the pipeline and a training read as the service accounts (impersonation) and record the expected 403 on the holdout bucket (Milestone 3) |
+| One noisy label per pair (about 63% researcher agreement) | Caps the accuracy any model can reach; some "errors" will be label noise | Estimate the noise from the 200-pair review sheet |
+| No timestamps in hh-rlhf | F1/F2 are held-out prompt groups, not later data, so they cannot measure drift over time | A preference dataset with collection dates |
+| The test set represents this collection process (crowdworker prompts) | Results describe crowdworkers on these four subsets, not real users | Evaluate on a differently collected preference set |
+| Per-subset test accuracy is only known to about ±3–5 points | Small differences between subsets cannot be claimed | Report group-bootstrap intervals; claim only differences larger than them |
 | PII masking is pattern-based (e-mail, phone) | Names, addresses and other personal details in free text are not masked | A named-entity based PII detector |
-| Per-subset test accuracy is only known to about ±3–5 points | Small differences between subsets cannot be claimed in M3 | Larger test groups, or reporting pooled results with intervals |
-| No `models/` folder yet | Model artifacts are not stored | Added in Milestone 3, in the same main bucket and versioned the same way |
+| Single machine; Beam not run on Dataflow | Fine at 79 MB, untested at larger scale | Run `beam_validate.py` with `DataflowRunner` if the data grows |
+| No `models/` folder yet | Model artefacts are not stored or versioned yet | Added in Milestone 3, in the main bucket and versioned like the data |
 
 **Reflection**
 
-- *Implementing storage early paid off.* Because the buckets already worked after Milestone 1, Milestone 2 could focus on how the pipeline uses them: checking before upload, keeping rejected rows, and reading back from storage to verify. Most of the trust in the data now comes from these checks rather than from the bucket itself.
-- *The EDA changed the pipeline, not just the report.* The always-`chosen` label, the typographic apostrophe in the refusal rule and the subset-dependent length effect were all found in the data and each led to a code change and a test.
-- *Independent checks caught real problems.* The Beam comparison exposed a multi-member gzip reading bug (44,044 of 169,352 rows) that the pandas pipeline alone would not have revealed. I would build the reconciliation first next time, not last.
-- *Keeping claims precise.* Some early wording overstated things ("no leakage", "Dataflow-ready"). These were changed to what the evidence supports: "no measurable inflation for these models" and "planned, not implemented".
-- *For Milestone 3:* train against `model_inputs/`, beat the per-subset length baselines on every subset, report group-bootstrap intervals, and test the service-account separation.
+- **Implementing storage early paid off:** because the buckets worked after Milestone 1, Milestone 2 could focus on how the pipeline uses them (checking before upload, keeping rejected rows, reading back to verify). Most of the trust in the data now comes from these checks rather than from the bucket itself.
+- **The EDA changed the pipeline, not just the report:** the always-`chosen` label, the typographic apostrophe in the refusal rule and the subset-dependent length effect were each found in the data and each led to a code change and a test.
+- **Independent checks caught a real bug:** the Beam comparison exposed a gzip reading problem (44,044 of 169,352 rows) that the pandas pipeline alone would not have shown. Next time I would build the reconciliation first, not last.
+- **Precise claims:** reviewing the draft showed wording that said more than the evidence ("no leakage", "Dataflow-ready"); it now says "no measurable inflation for these models" and "planned, not implemented".
+- **For Milestone 3:** train on `model_inputs/`, beat the per-subset length baseline on every subset, report group-bootstrap intervals, and test the service-account separation.
 
 ---
 
