@@ -18,14 +18,17 @@ How it is organised:
 
 This project prepares the data for an RLHF reward model : given a conversation and two possible replies, predict which one the crowdworker preferred. In Milestone 1 I picked the dataset, decided how to split it and where to store it, and built a pipeline that downloads, cleans, splits and uploads the data to Google Cloud Storage (release data-v1.0). Milestone 2 starts from that working pipeline and adds to it: exploratory analysis, data contracts, a quarantine for bad rows, monitoring, and an independent check of the results. The table below lists the Milestone 1 decisions I kept. The ones I changed are in [M2.4](#m24-changes-since-v10-and-why).
 
+
 | Decision | Summary |
 |---|---|
-| Task and target | Binary: `label` = 1 if reply A was preferred. Inputs: context and the two replies; subset, split and flags are for evaluation only |
-| Split | Grouped by the hashed first Human message; 20% of groups reserved as "future" data (F1, F2); 30,002-pair working set split 80/10/10 by `sha256(group_id + salt) % 10`; anything learned from data is fitted on train only |
-| Storage | Object storage (Google Cloud Storage), not a database: the data is written once in batches and read whole by training, with no transactional queries. Two buckets: `gs://bc-rlhf-reward-2026` (Standard) and `gs://bc-rlhf-reward-2026-holdout` (Coldline: test, F1, F2). How this was implemented and refined in M2 is in [M2.2](#m22-storage-implementation-and-evidence) |
-| Formats | Raw JSONL.gz as downloaded; Parquet for processed data; JSON manifests; CSV/JSON audit files |
-| Versioning | `vMAJOR.MINOR` folders + manifest + Git tag (`data-v1.0`, now `data-v1.1`); MINOR = cleaning rules changed |
-| Bias and poisoning | Audit plan and poisoning defences: M1 README sections 11–12; extended here by the datasheet and the leakage audit |
+| Task and target | A yes/no prediction: `label` = 1 if reply A was the preferred one. The model sees the conversation and the two replies. Subset, split and the flags are only used to break down the results, never as inputs |
+| Split | Pairs are grouped by their first Human message (hashed), so the same prompt never ends up in two splits. 20% of the groups are held back as "future" data (F1, F2). The remaining 30,002-pair working set is split 80/10/10 using `sha256(group_id + salt) % 10`. Anything learned from the data is fitted on train only |
+| Storage | Google Cloud Storage rather than a database, because the data is written once in batches and training reads whole files, with no queries in between. There are two buckets: `gs://bc-rlhf-reward-2026` (Standard) and `gs://bc-rlhf-reward-2026-holdout` (Coldline, for test, F1 and F2). [M2.2](#m22-storage-implementation-and-evidence) shows how this was set up and what changed in M2 |
+| Formats | Raw files stay as the original JSONL.gz. Processed data is Parquet, manifests are JSON, and audit files are CSV or JSON |
+| Versioning | Each version gets its own `vMAJOR.MINOR` folder, a manifest and a Git tag (`data-v1.0`, now `data-v1.1`). The MINOR number goes up when the cleaning rules change |
+| Bias and poisoning | The audit plan and the poisoning defences are in sections 11–12 of the M1 README. M2 adds the datasheet and the leakage audit |
+
+
 
 ## 🧭 Milestone 2 at a glance (dataset version v1.1)
 
