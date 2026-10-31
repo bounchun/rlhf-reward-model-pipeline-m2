@@ -191,12 +191,12 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 | Step | Reads | Writes | Storage check |
 |---|---|---|---|
-| 2. Store raw | local downloads | `raw/hh-rlhf/<commit>/…` | SHA-256 checked before upload; `raw/` is write-once (different bytes ⇒ error); every object read back and re-hashed |
-| 3. Clean | `raw/` from the bucket | `quarantine/v1.1/quarantine.parquet` | SHA-256 of each raw object re-checked before parsing |
+| 2. Store raw | local downloads | `raw/hh-rlhf/<commit>/…` | Each file's SHA-256 is checked before upload, and again after reading it back; `raw/` is write-once, so a file with different content stops the run |
+| 3. Clean | `raw/` from the bucket | `quarantine/v1.1/quarantine.parquet` | Each raw file’s SHA-256 is checked again before any row is read | 
 | 4. Quality checks | local cleaned data | `audit/v1.1/` | — |
-| 9. Store processed | local splits | `processed/v1.1/{train,dev}`; holdout `v1.1/{test,future_f1,future_f2}` | 17-rule contract first: a HARD violation ⇒ nothing uploaded; URI, SHA-256, bytes and rows of every file recorded in the manifest |
-| 11. Model inputs | all 5 splits from the buckets | `processed/v1.1/model_inputs/` and holdout `v1.1/model_inputs/` | Scaler fitted on train only, saved as `numeric_scaler.json` |
-| Sample queries, EDA | train/dev and quarantine from the main bucket | `audit/v1.1/`, `docs/eda/` | Never read the holdout bucket |
+| 9. Store processed | local splits | `processed/v1.1/{train,dev}`; holdout `v1.1/{test,future_f1,future_f2}` | Every split is checked against the 17-rule contract before upload; if a HARD rule fails, no split is uploaded (only the contract log, to show what failed). Each stored file's location (URI), hash, size (bytes) and row count are saved in the manifest |
+| 11. Model inputs | all 5 splits from the buckets | `processed/v1.1/model_inputs/` and holdout `v1.1/model_inputs/` | The scaling uses the train mean and standard deviation only, saved in `numeric_scaler.json` so every split is scaled the same way |
+| Sample queries, EDA | train/dev and quarantine from the main bucket (EDA also uses the local cleaned data) | `audit/v1.1/`, `docs/eda/` | Never read the holdout bucket |
 | Reconcile | `raw/` and all 5 stored splits from the buckets | `audit/v1.1/reconciliation.json` | Stored files must match the manifest's SHA-256 and row counts |
 
 **Evidence.**
