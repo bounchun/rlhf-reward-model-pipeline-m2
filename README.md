@@ -74,7 +74,9 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              rejected rows (with reason, file and line) ──▶ main bucket: quarantine/v1.1/
 │   │                              clean rows ──▶ data/interim/ (local, not uploaded yet)
 │   │   
-│   ├── step4_quality_checks       hard checks, poisoning screen ──▶ main bucket: audit/v1.1/
+│   ├── step4_quality_checks       runs the hard checks (any failure stops the run), screens for
+│   │                              data poisoning and checks that no e-mail or phone number is left
+│   │                              report + flagged pairs ──▶ main bucket: audit/v1.1/
 │   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match 
 │
 ├── 4 TRANSFORM
