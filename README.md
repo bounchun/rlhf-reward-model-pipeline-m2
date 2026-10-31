@@ -52,6 +52,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │
 ├── 1 SOURCE  (manual, once)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
+│   │
 │   └── setup_gcs.sh               creates 2 buckets (versioning + lifecycle),
 │                                  2 service accounts: pipeline-sa writes, train-sa reads main only
 │
@@ -60,8 +61,12 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              (4 subsets: helpful-base, harmless-base, helpful-online,
 │   │                              helpful-rejection-sampled; a train and a test file for each)
 │   │                              ──▶ data/downloads/ (local), every file's SHA-256 checked
-│   │                              against the hashes pinned in manifests/raw-<commit>.json                                 
-│   └── step2_store_raw            upload, read back, verify ─────▶ main bucket: raw/ (write-once)
+│   │                              against the hashes pinned in manifests/raw-<commit>.json
+│   │                                   
+│   └── step2_store_raw            uploads the 8 files to raw/ in the main bucket, reads each one
+│                                  back and checks its SHA-256 again. raw/ is write-once: a file
+│                                  that already exists is never overwritten
+│                                  ──▶ gs://bc-rlhf-reward-2026/raw/hh-rlhf/<commit>/
 │
 ├── 3 VALIDATE
 │   ├── step3_clean                reads raw/ from the bucket; data contract, PII masking
