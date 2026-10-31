@@ -71,7 +71,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 ├── 3 VALIDATE
 │   ├── step3_clean                reads the raw files back from raw/ in the bucket, checks each
 │   │                              row against the data contract and masks e-mails and phone numbers
-│   │                              rejected rows (reason, file, line) ──▶ main bucket: quarantine/v1.1/
+│   │                              rejected rows (reason, file, line) ──▶ main: quarantine/v1.1/
 │   │                              clean rows ──▶ data/interim/ (local, not uploaded yet)
 │   │   
 │   ├── step4_quality_checks       runs the hard checks (any failure stops the run), screens for
