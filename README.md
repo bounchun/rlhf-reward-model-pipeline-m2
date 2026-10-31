@@ -77,7 +77,10 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   ├── step4_quality_checks       runs the hard checks (any failure stops the run), screens for
 │   │                              data poisoning and checks that no e-mail or phone number is left
 │   │                              report + flagged pairs ──▶ main bucket: audit/v1.1/
-│   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match 
+│   │
+│   └╌╌ beam_validate              optional (make beam, not in make all): runs step 3's data
+│                                  contract again with Apache Beam on this machine, and checks
+│                                  that every count matches step 3's
 │
 ├── 4 TRANSFORM
 │   ├── step5_features             group_id, A/B swap → label, lengths, refusal flags
