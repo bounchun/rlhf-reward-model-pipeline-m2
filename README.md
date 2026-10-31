@@ -106,8 +106,18 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              train, dev ─────────────────────▶ main bucket: processed/v1.1/
 │   │                              test, F1, F2 ───────────────────▶ holdout bucket: v1.1/
 │   │    
-│   ├── step10_review_sample       blind 200-pair sheet ───────────▶ stays local
-│   └── step11_model_inputs        truncated text, scaled lengths ─▶ model_inputs/ in both buckets
+│   ├── step10_review_sample       picks 200 train pairs (spread across the 4 subsets) for me to
+│   │                              label by hand, with the crowdworker's choice hidden
+│   │                              review sheet ───────────────────▶ audit/label_review_v1.1.csv (local only:
+│   │                                                                it contains harmful text, so it is never
+│   │                                                                uploaded or committed to Git)
+│   │ 
+│   └── step11_model_inputs        reads the 5 splits back from the buckets and gets them ready for
+│                                  the model: long contexts are cut from the left (newest turns kept,
+│                                  max 256 words) and the log lengths are scaled with train's mean/standard deviation,
+│                                  which are saved in numeric_scaler.json for Milestone 3
+│                                  train, dev + numeric_scaler.json ▶ main bucket: processed/v1.1/model_inputs/
+│                                  test, F1, F2 ───────────────────▶ holdout bucket: v1.1/model_inputs/
 │
 └── 6 CHECK
     ├── sample_queries             sanity queries on train/dev ────▶ main bucket: audit/v1.1/
