@@ -209,25 +209,45 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
   
 - Screenshots of the main bucket settings and of the four v1.1 folders after the run:
 
+
 *Main bucket settings: region, uniform access, public access prevention, versioning, 2 lifecycle rules*
+
 
 ![bucket settings](docs/img/screenshot_bucket_settings.png)
 
+
+
 *(a) Main bucket, `processed/v1.1/`*
+
+
 
 ![processed/v1.1](docs/img/m2_bucket_processed_v1.1.png)
 
+
+
 *(b) Main bucket, `quarantine/v1.1/`*
+
+
 
 ![quarantine/v1.1](docs/img/m2_bucket_quarantine_v1.1.png)
 
+
+
 *(c) Main bucket, `audit/v1.1/` (with `validation_log.csv` and `reconciliation.json`)*
+
+
 
 ![audit/v1.1](docs/img/m2_bucket_audit_v1.1.png)
 
+
+
 *(d) Holdout bucket (Coldline), `v1.1/`*
 
+
+
 ![holdout v1.1](docs/img/m2_bucket_holdout_v1.1.png)
+
+
 
 **What changed after Milestone 1.** The bucket design (two buckets, classes, versioning, IAM) is unchanged, because the v1.0 run showed it worked. The refinements are in how the pipeline uses it:
 
