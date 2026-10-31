@@ -50,7 +50,7 @@ This project prepares the data for an RLHF reward model : given a conversation a
 make all  (Colab or locally · runs the steps in order, top to bottom,
 │          and each step writes its log to manifests/v1.1.json).
 │
-├── 1 SOURCE  (manual, once)
+├── 1 SOURCE  (one-off manual setup, not part of make all)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
 │   │
 │   └── setup_gcs.sh               creates 2 buckets (versioning + lifecycle),
