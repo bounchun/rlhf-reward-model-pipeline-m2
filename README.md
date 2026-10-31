@@ -102,33 +102,33 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 ├── 5 STORE
 │   ├── step9_store_processed      checks every split against the 17-rule data contract first;
 │   │                              if a HARD rule fails, the run stops and nothing is uploaded
-│   │                              contract results ───────────────▶ main bucket: audit/v1.1/validation_log.csv
-│   │                              train, dev ─────────────────────▶ main bucket: processed/v1.1/
-│   │                              test, F1, F2 ───────────────────▶ holdout bucket: v1.1/
+│   │                              contract results ──▶ main bucket: audit/v1.1/validation_log.csv
+│   │                              train, dev    ──▶ main bucket: processed/v1.1/
+│   │                              test, F1, F2  ──▶ holdout bucket: v1.1/
 │   │    
 │   ├── step10_review_sample       picks 200 train pairs (spread across the 4 subsets) for me to
 │   │                              label by hand, with the crowdworker's choice hidden
-│   │                              review sheet ───────────────────▶ audit/label_review_v1.1.csv (local only:
-│   │                                                                it contains harmful text, so it is never
-│   │                                                                uploaded or committed to Git)
+│   │                              review sheet  ──▶ audit/label_review_v1.1.csv
+│   │                                                (local only: it contains harmful text,
+│   │                                                 so it is never uploaded or committed to Git)
 │   │ 
 │   └── step11_model_inputs        reads the 5 splits back from the buckets and gets them ready for
 │                                  the model: long contexts are cut from the left (newest turns kept,
 │                                  max 256 words) and the log lengths are scaled with train's mean/standard deviation,
 │                                  which are saved in numeric_scaler.json for Milestone 3
 │                                  train, dev + numeric_scaler.json ▶ main bucket: processed/v1.1/model_inputs/
-│                                  test, F1, F2 ───────────────────▶ holdout bucket: v1.1/model_inputs/
+│                                  test, F1, F2 ──▶ holdout bucket: v1.1/model_inputs/
 │
 └── 6 CHECK
     ├── sample_queries             reads train and dev back from the main bucket and runs a few
     │                              example pandas queries on them, to check the stored data makes
     │                              sense (never reads the holdout bucket)
-    │                              results ────────────────────────▶ main bucket: audit/v1.1/sample_queries.json
+    │                              results ──▶ main bucket: audit/v1.1/sample_queries.json
     │    
     ├── reconcile                  recounts everything straight from the raw files in plain Python,
     │                              without the pipeline code, and reads the 5 stored splits back
     │                              from the buckets; all 7 checks must match the pipeline's numbers
-    │                              results ────────────────────────▶ main bucket: audit/v1.1/reconciliation.json
+    │                              results ──▶ main bucket: audit/v1.1/reconciliation.json
     │
     └── eda                        reads train, dev and the quarantine from the main bucket (never
                                    the holdout bucket) and turns them into 9 figures, a summary and
