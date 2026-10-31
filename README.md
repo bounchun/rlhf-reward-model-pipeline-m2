@@ -100,9 +100,12 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │                                  is quicker to write and read than many shards 
 │
 ├── 5 STORE
-│   ├── step9_store_processed      17-rule contract; HARD violation ⇒ nothing uploaded
+│   ├── step9_store_processed      checks every split against the 17-rule data contract first;
+│   │                              if a HARD rule fails, the run stops and nothing is uploaded
+│   │                              contract results ───────────────▶ main bucket: audit/v1.1/validation_log.csv
 │   │                              train, dev ─────────────────────▶ main bucket: processed/v1.1/
 │   │                              test, F1, F2 ───────────────────▶ holdout bucket: v1.1/
+│   │    
 │   ├── step10_review_sample       blind 200-pair sheet ───────────▶ stays local
 │   └── step11_model_inputs        truncated text, scaled lengths ─▶ model_inputs/ in both buckets
 │
