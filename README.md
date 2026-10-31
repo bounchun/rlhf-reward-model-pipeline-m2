@@ -120,9 +120,22 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │                                  test, F1, F2 ───────────────────▶ holdout bucket: v1.1/model_inputs/
 │
 └── 6 CHECK
-    ├── sample_queries             sanity queries on train/dev ────▶ main bucket: audit/v1.1/
-    ├── reconcile                  recount from raw, 7 checks ─────▶ main bucket: audit/v1.1/
-    └── eda                        9 figures + findings ───────────▶ GitHub: docs/eda/
+    ├── sample_queries             reads train and dev back from the main bucket and runs a few
+    │                              example pandas queries on them, to check the stored data makes
+    │                              sense (never reads the holdout bucket)
+    │                              results ────────────────────────▶ main bucket: audit/v1.1/sample_queries.json
+
+    ├── reconcile                  recounts everything straight from the raw files in plain Python,
+    │                              without the pipeline code, and reads the 5 stored splits back
+    │                              from the buckets; all 7 checks must match the pipeline's numbers
+    │                              results ────────────────────────▶ main bucket: audit/v1.1/reconciliation.json
+    │
+    └── eda                        reads train, dev and the quarantine from the main bucket (never
+                                   the holdout bucket) and turns them into 9 figures, a summary and
+                                   a findings table linking each finding to a pipeline decision
+                                   figures, eda_summary.json, findings.csv ─▶ GitHub: docs/eda/
+                                   (aggregates only, no dataset text, so safe to commit)
+
 
 gs://bc-rlhf-reward-2026                      (main bucket · Standard · versioning on)
 ├── raw/                           original files from Hugging Face, write-once
