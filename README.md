@@ -16,7 +16,7 @@ How it is organised:
 
 ### M2.0 Project summary and Milestone 1 decisions
 
-The project builds the data side of a reward model for RLHF: given a conversation and two replies, predict which reply a crowdworker preferred. Milestone 1 chose the dataset, the split and the storage, and already implemented the pipeline that downloads, cleans, splits and stores the data in Google Cloud Storage (release `data-v1.0`). Milestone 2 uses that working pipeline as its starting point and extends it with EDA, data contracts, quarantine, monitoring and independent verification. The table below summarises the Milestone 1 decisions that still hold; what changed is in [M2.4](#m24-changes-since-v10-and-why).
+This project prepares the data for an RLHF reward model : given a conversation and two possible replies, predict which one the crowdworker preferred. In Milestone 1 I picked the dataset, decided how to split it and where to store it, and built a pipeline that downloads, cleans, splits and uploads the data to Google Cloud Storage (release data-v1.0). Milestone 2 starts from that working pipeline and adds to it: exploratory analysis, data contracts, a quarantine for bad rows, monitoring, and an independent check of the results. The table below lists the Milestone 1 decisions I kept. The ones I changed are in [M2.4](#m24-changes-since-v10-and-why).
 
 | Decision | Summary |
 |---|---|
