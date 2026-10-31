@@ -50,17 +50,15 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 ├── 1 SOURCE  (manual, once)
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
 │   └── setup_gcs.sh               creates 2 buckets (versioning + lifecycle),
-│                                  2 service accounts (pipeline `pipeline-sa` + training `train-sa`) 
+│                                  2 service accounts: pipeline-sa writes, train-sa reads main only
 │
 ├── 2 INGEST
-│   ├── step1_scrape_raw           Fetches 8 raw files (train + test for `harmless-base`,
-│   │                              `helpful-base`, `helpful-online`, helpful-rejection-sampled`) 
-│   │                              over HTTPS into `data/downloads/`, and checks each against its pinned SHA-256 hash.
-│   └── step2_store_raw            Uploads raw files to `raw/` in the main bucket,
-│                                  then reads them back to check they arrived intact.
+│   ├── step1_scrape_raw           8 raw files (4 subsets × train/test) over HTTPS
+│   │                              ──▶ data/downloads/, each checked against its pinned SHA-256
+│   └── step2_store_raw            upload, read back, verify ─────▶ main bucket: raw/ (write-once)
 │
 ├── 3 VALIDATE
-│   ├── step3_clean                raw data contract, PII masking
+│   ├── step3_clean                reads raw/ from the bucket; data contract, PII masking
 │   │                              bad rows (reason, file, line) ──▶ main bucket: quarantine/v1.1/
 │   ├── step4_quality_checks       hard checks, poisoning screen ──▶ main bucket: audit/v1.1/
 │   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match
@@ -91,7 +89,7 @@ gs://bc-rlhf-reward-2026                      (main bucket · Standard · versio
 ├── audit/v1.1/                    validation log, quality report, queries, reconcile
 └── manifests/                     v1.1.json ···· copy ····▶ GitHub: manifests/
 
-gs://bc-rlhf-reward-2026-holdout              (Coldline · training account has no access)
+gs://bc-rlhf-reward-2026-holdout              (Coldline · train-sa has no role on it)
 └── v1.1/                          test, future_f1, future_f2 (+ model_inputs/), read once
 
 ```
