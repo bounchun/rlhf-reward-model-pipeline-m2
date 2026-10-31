@@ -137,7 +137,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
                                    (aggregates only, no dataset text, so safe to commit)
 
 
-gs://bc-rlhf-reward-2026           (main bucket · Standard storage· versioning on) 
+gs://bc-rlhf-reward-2026           (main bucket · standard storage· versioning on) 
 ├── raw/                           original Hugging Face files, never changed: if a cleaning
 │                                  rule turns out to be wrong, I fix it and rerun from these
 │                                    
@@ -146,15 +146,17 @@ gs://bc-rlhf-reward-2026           (main bucket · Standard storage· versioning
 │  
 ├── processed/v1.1/                train.parquet and dev.parquet: cleaned, checked against the
 │   │                              17-rule contract, ready for training (test stays in the holdout bucket)
-│   └── model_inputs/              ...
+│   │
 │   └── model_inputs/              train and dev ready for the model, plus numeric_scaler.json
 │                                  (train mean/standard deviation) ──▶ what Milestone 3 trains on
+│
 ├── audit/v1.1/                    the proof the data was checked: contract results (step 9),
 │                                  quality report (step 4), sample queries and reconciliation
+│
 └── manifests/                     v1.1.json: what every step did (counts, settings, file hashes);
                                    a copy is committed to GitHub in manifests/
 
-gs://bc-rlhf-reward-2026-holdout       (holdout bucket: Coldline storage, train-sa has no access)
+gs://bc-rlhf-reward-2026-holdout   (holdout bucket: Coldline storage, train-sa has no access)
 └── v1.1/                          test, future_f1 and future_f2, plus their model_inputs/;
                                    read only once, for the final evaluation
 
