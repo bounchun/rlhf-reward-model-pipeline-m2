@@ -169,7 +169,7 @@ gs://bc-rlhf-reward-2026-holdout   (holdout bucket: Coldline storage, train-sa h
 
 In Milestone 1 I chose object storage and explained why, so I won’t go over that again here. This section is about how it works in practice: how the storage is conffigured, how the data is organised and accessed, how each pipeline step uses them, and what I changed after Milestone 1. The buckets were created in Milestone 1. For v1.1 I kept them, added new folders and checks, and filled them with a full Colab run on 26 October 2026.
 
-**How it is configured.** `scripts/setup_gcs.sh` creates both buckets in one go (it is also cell 0b of the Colab notebook), so the setup is code, not console clicks.
+**How it is configured.** scripts/setup_gcs.sh creates both buckets in one go (cell 0b of the Colab notebook runs it too). Because the setup is a script rather than manual clicks in the console, anyone can repeat it exactly.
 
 | Setting | Main bucket `gs://bc-rlhf-reward-2026` | Holdout bucket `gs://bc-rlhf-reward-2026-holdout` | Reason |
 |---|---|---|---|
