@@ -87,7 +87,10 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              puts the preferred reply in A or B by hash so the label is 0 or 1,
 │   │                              and adds reply lengths and refusal flags ──▶ data/interim/ (local) 
 │   │ 
-│   ├── step6_filter               future reserve, 30k working set
+│   ├── step6_filter               sets aside 20% of the prompt groups as "future" data (F1, F2)
+│   │                              and picks a 30,002-pair working set from the rest,
+│   │                              taking whole prompt groups only ──▶ data/interim/ (local) 
+│   │  
 │   ├── step7_split                80/10/10 by hashed group, outlier cut-off fitted on train
 │   └── step8_shard                skipped (one file is faster at this size)
 │
