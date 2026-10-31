@@ -144,8 +144,8 @@ gs://bc-rlhf-reward-2026           (main bucket · standard storage· versioning
 ├── quarantine/v1.1/               rows rejected by step 3, each with the reason and the file
 │                                  and line it came from; kept instead of deleted
 │  
-├── processed/v1.1/                train.parquet and dev.parquet: cleaned, checked against the
-│   │                              17-rule contract, ready for training (test stays in the holdout bucket)
+├── processed/v1.1/                train.parquet and dev.parquet: cleaned, checked against 
+│   │                              17-rule contract, ready for training (test stays in holdout bucket)
 │   │
 │   └── model_inputs/              train and dev ready for the model, plus numeric_scaler.json
 │                                  (train mean/standard deviation) ──▶ what Milestone 3 trains on
