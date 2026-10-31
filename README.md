@@ -192,12 +192,12 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 | Step | Reads | Writes | Storage check |
 |---|---|---|---|
 | 2. Store raw | local downloads | `raw/hh-rlhf/<commit>/…` | SHA-256 checked before upload; `raw/` is write-once (different bytes ⇒ error); every object read back and re-hashed |
-| 3. Clean | **`raw/` from the bucket** | `quarantine/v1.1/quarantine.parquet` | SHA-256 of each raw object re-checked before parsing |
+| 3. Clean | `raw/` from the bucket | `quarantine/v1.1/quarantine.parquet` | SHA-256 of each raw object re-checked before parsing |
 | 4. Quality checks | local cleaned data | `audit/v1.1/` | — |
 | 9. Store processed | local splits | `processed/v1.1/{train,dev}`; holdout `v1.1/{test,future_f1,future_f2}` | 17-rule contract first: a HARD violation ⇒ nothing uploaded; URI, SHA-256, bytes and rows of every file recorded in the manifest |
-| 11. Model inputs | **all 5 splits from the buckets** | `processed/v1.1/model_inputs/` and holdout `v1.1/model_inputs/` | Scaler fitted on train only, saved as `numeric_scaler.json` |
-| Sample queries, EDA | **train/dev and quarantine from the main bucket** | `audit/v1.1/`, `docs/eda/` | Never read the holdout bucket |
-| Reconcile | **`raw/` and all 5 stored splits from the buckets** | `audit/v1.1/reconciliation.json` | Stored files must match the manifest's SHA-256 and row counts |
+| 11. Model inputs | all 5 splits from the buckets | `processed/v1.1/model_inputs/` and holdout `v1.1/model_inputs/` | Scaler fitted on train only, saved as `numeric_scaler.json` |
+| Sample queries, EDA | train/dev and quarantine from the main bucket | `audit/v1.1/`, `docs/eda/` | Never read the holdout bucket |
+| Reconcile | `raw/` and all 5 stored splits from the buckets | `audit/v1.1/reconciliation.json` | Stored files must match the manifest's SHA-256 and row counts |
 
 **Evidence.**
 - `manifests/v1.1.json` (also copied to `gs://bc-rlhf-reward-2026/manifests/`) records the `gs://` URI, SHA-256, size and row count of every stored file, for example `gs://bc-rlhf-reward-2026/processed/v1.1/train.parquet`, 24,122 rows, 20.1 MB, and `gs://bc-rlhf-reward-2026-holdout/v1.1/test.parquet`, 3,004 rows.
