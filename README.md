@@ -171,14 +171,14 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 **How it is configured.** `scripts/setup_gcs.sh` creates both buckets in one go (it is also cell 0b of the Colab notebook), so the setup is code, not console clicks.
 
-| Setting | Main bucket `gs://bc-rlhf-reward-2026` | Holdout bucket `gs://bc-rlhf-reward-2026-holdout` | Why |
+| Setting | Main bucket `gs://bc-rlhf-reward-2026` | Holdout bucket `gs://bc-rlhf-reward-2026-holdout` | Reason |
 |---|---|---|---|
-| Location | `europe-west1` (Belgium) | `europe-west1` | One region, close to Dublin; no multi-region cost for data that is easy to rebuild |
-| Storage class | Standard | Coldline | Train/dev are read on every run; test/F1/F2 are written once and read rarely |
-| Access control | Uniform bucket-level access, public access prevention on | Same | Permissions only through IAM roles, no per-object ACLs; the data contains harmful text and must never be public |
-| Object versioning | On | On | An overwritten or deleted file can be recovered |
-| Lifecycle (`scripts/gcs_lifecycle.json`) | Delete a non-current version when 4 newer ones exist or after 90 days | Same | Keeps versioning from growing the bill forever |
-| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: no role | The training identity can read train/dev but cannot see the test set |
+| Location | `europe-west1` (Belgium) | `europe-west1` | A single region near Dublin is enough. The data can be rebuilt from the raw files, so paying extra for multi-region copies isn’t worth it|
+| Storage class | Standard | Coldline | Standard for data in daily use (train, dev); Coldline is cheaper for data kept aside and opened rarely (test, F1, F2) |
+| Access control | Uniform bucket-level access, public access prevention on | Same | One set of IAM rules covers the whole bucket, so no single file can be shared by mistake; the harmful text in the data must never be public |
+| Object versioning | On | On | A bad rerun or an accidental delete doesn’t lose data: the previous version is kept|
+| Lifecycle (`scripts/gcs_lifecycle.json`) | Delete a non-current version when 4 newer ones exist or after 90 days | Same | Keeps recent versions for recovery but deletes older ones, so costs stay small |
+| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: no role | The training account is given read access to train and dev only, and no access to the test set |
 
 **How the data is organised.** Every dataset version gets its own folder (`processed/v1.1/`, `quarantine/v1.1/`, `audit/v1.1/`, holdout `v1.1/`), so v1.0 and v1.1 sit side by side and nothing is overwritten between versions. Raw files are keyed by the Hugging Face commit (`raw/hh-rlhf/<commit>/<subset>/<split>.jsonl.gz`), so a different upstream revision could never be mixed in. The full layout is the bucket tree in [M2.1](#m21-pipeline-architecture). Interim files (`data/interim/`) never go to a bucket, because before the split they still contain test rows.
 
