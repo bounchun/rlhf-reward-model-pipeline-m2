@@ -114,8 +114,9 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │ 
 │   └── step11_model_inputs        reads the 5 splits back from the buckets and gets them ready for
 │                                  the model: long contexts are cut from the left (newest turns kept,
-│                                  max 256 words) and the log lengths are scaled with train's mean/standard deviation,
-│                                  which are saved in numeric_scaler.json for Milestone 3
+│                                  max 256 words), the log lengths are scaled
+│                                  with train's mean/standard deviation,
+│                                  which are saved in numeric_scaler.json for M3
 │                                  train, dev + numeric_scaler.json ▶ main bucket: processed/v1.1/model_inputs/
 │                                  test, F1, F2 ──▶ holdout bucket: v1.1/model_inputs/
 │
