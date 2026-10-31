@@ -34,18 +34,6 @@ This project prepares the data for an RLHF reward model : given a conversation a
 
 | Milestone 2 requirement | Where it is |
 |---|---|
-| EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.3](#m23-what-the-eda-found-and-what-it-changed) |
-| Pipeline: acquire → validate → store → transform | Steps 1–11, run with (`make all`). The full pipeline is laid out in [M2.1](#m21-pipeline-architecture) |
-| Storage implementation | Two configured GCS buckets, used by every step through one storage layer; every stored file's URI, SHA-256 and row count is in the manifest and re-checked from the bucket. See [M2.2](#m22-storage-implementation-and-evidence) |
-| Validation that fails loudly | `src/contract.py` holds two data contracts. The raw contract runs in step 3: any row that fails is moved to a quarantine file, along with the reason, the source file and the line number. The processed contract runs in step 9 and checks  17 rules, logging the results to `audit/v1.1/validation_log.csv`. If a HARD rule fails, the pipeline stops before anything gets uploaded. |
-| Cleaning and transformation | In step 3 the text gets normalised, PII is masked, and anything broken is quarantined (there are 7 reasons a row can end up there). Step 5 does the A/B swap and builds the features. Step 7 adds an outlier flag, using thresholds fitted on the training set only. Step 11 gets everything ready for the model: contexts are cut from the left, and the log-length features are scaled with the training mean and standard deviation.|
-| Second method / reconciliation | `src/reconcile.py` (run it with `make reconcile`) recounts everything straight from the raw files using plain Python, independently of the pipeline. Its numbers have to match the pipeline’s on all 7 checks.|
-| Reproducibility | The data commit and library versions are pinned, and the splits are hash-based, so rerunning the pipeline gives byte-identical output (there’s a test for this). On every push, GitHub Actions runs the 43 tests and an offline demo (see .github/workflows/ci.yml).|
-| Changes since v1.0 | [M2.4](#m24-changes-since-v10-and-why) |
-| Limitations and reflection | [M2.6](#m26-limitations-and-reflection) |
-
-| Milestone 2 requirement | Where it is |
-|---|---|
 | EDA that drives decisions | `src/eda.py` (run it with `make eda`) produces 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv`, which links each finding to the decision it led to and its limits. The summary is in [M2.3](#m23-what-the-eda-found-and-what-it-changed) |
 | Pipeline: acquire → validate → store → transform | Steps 1–11, all run by (`make all`). The full pipeline is laid out in [M2.1](#m21-pipeline-architecture) |
 | Storage implementation | Two GCS buckets, set up by a script and used by every step through the same few storage functions. The manifest records each stored file's location, SHA-256 and row count, and the files are checked again when read back from the bucket. See [M2.2](#m22-storage-implementation-and-evidence) |
