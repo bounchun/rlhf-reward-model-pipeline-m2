@@ -167,7 +167,7 @@ gs://bc-rlhf-reward-2026-holdout   (holdout bucket: Coldline storage, train-sa h
 
 ### M2.2 Storage: implementation and evidence
 
-Milestone 1 chose object storage and justified it. Milestone 2 does not repeat that argument: this section shows how the storage is configured, how the data is organised and accessed, how each pipeline step uses it, and what was refined after Milestone 1. The buckets were first created in M1; v1.1 builds on them, adds new folders and checks, and was written by a full Colab run on 26 Oct 2026.
+In Milestone 1 I chose object storage and explained why, so I won’t go over that again here. This section is about how it works in practice: how the storage is conffigured, how the data is organised and accessed, how each pipeline step uses them, and what I changed after Milestone 1. The buckets were created in Milestone 1. For v1.1 I kept them, added new folders and checks, and filled them with a full Colab run on 26 October 2026.
 
 **How it is configured.** `scripts/setup_gcs.sh` creates both buckets in one go (it is also cell 0b of the Colab notebook), so the setup is code, not console clicks.
 
