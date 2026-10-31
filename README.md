@@ -79,11 +79,11 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              report + flagged pairs ──▶ main bucket: audit/v1.1/
 │   │
 │   └╌╌ beam_validate              optional (make beam, not in make all): runs step 3's data
-│                                  contract again with Apache Beam on this machine, and checks
+│                                  contract again with Apache Beam on this machine, checks
 │                                  that every count matches step 3's
 │
 ├── 4 TRANSFORM
-│   ├── step5_features             gives each pair a prompt-group id (hash of the first Human message),
+│   ├── step5_features             gives each pair a prompt-group id (hash of first Human message),
 │   │                              puts the preferred reply in A or B by hash so the label is 0 or 1,
 │   │                              and adds reply lengths and refusal flags ──▶ data/interim/ (local) 
 │   │ 
@@ -92,7 +92,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              taking whole prompt groups only ──▶ data/interim/ (local) 
 │   │  
 │   ├── step7_split                splits the working set 80/10/10 into train, dev and test by the
-│   │                              hash of the prompt group, so a prompt never appears in two splits;
+│   │                              hash of the prompt group, so a prompt never appears in 2 splits;
 │   │                              flags very long replies, with the cut-off taken from train only
 │   │                              ──▶ data/interim/ (local)
 │   │  
@@ -107,14 +107,14 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   │                              test, F1, F2  ──▶ holdout bucket: v1.1/
 │   │    
 │   ├── step10_review_sample       picks 200 train pairs (spread across the 4 subsets) for me to
-│   │                              label by hand, with the crowdworker's choice hidden
+│   │                              label by hand, with crowdworker's choice hidden
 │   │                              review sheet  ──▶ audit/label_review_v1.1.csv
 │   │                                                (local only: it contains harmful text,
 │   │                                                 so it is never uploaded or committed to Git)
 │   │ 
-│   └── step11_model_inputs        reads the 5 splits back from the buckets and gets them ready for
-│                                  the model: long contexts are cut from the left (newest turns kept,
-│                                  max 256 words), the log lengths are scaled
+│   └── step11_model_inputs        reads 5 splits back from the buckets and gets them ready for
+│                                  the model: long contexts are cut from the left
+│                                  (newest turns kept, max 256 words), the log lengths are scaled
 │                                  with train's mean/standard deviation,
 │                                  which are saved in numeric_scaler.json for M3
 │                                  train, dev, scaler ▶ main bucket: processed/v1.1/model_inputs/
@@ -149,7 +149,7 @@ gs://bc-rlhf-reward-2026           (main bucket · Standard storage· versioning
 │   │                              17-rule contract, ready for training (test stays in holdout bucket)
 │   │
 │   └── model_inputs/              train and dev ready for the model, plus numeric_scaler.json
-│                                  (train mean/standard deviation) ──▶ what Milestone 3 trains on
+│                                  (train mean/standard deviation) ──▶ what M3 trains on
 │
 ├── audit/v1.1/                    the proof the data was checked: contract results (step 9),
 │                                  quality report (step 4), sample queries and reconciliation
