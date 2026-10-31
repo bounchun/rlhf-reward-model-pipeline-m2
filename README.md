@@ -69,10 +69,13 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │                                  ──▶ gs://bc-rlhf-reward-2026/raw/hh-rlhf/<commit>/
 │
 ├── 3 VALIDATE
-│   ├── step3_clean                reads raw/ from the bucket; data contract, PII masking
-│   │                              bad rows (reason, file, line) ──▶ main bucket: quarantine/v1.1/
+│   ├── step3_clean                reads the raw files back from raw/ in the bucket, checks each
+│   │                              row against the data contract and masks e-mails and phone numbers
+│   │                              rejected rows (with reason, file and line) ──▶ main bucket: quarantine/v1.1/
+│   │                              clean rows ──▶ data/interim/ (local, not uploaded yet)
+│   │   
 │   ├── step4_quality_checks       hard checks, poisoning screen ──▶ main bucket: audit/v1.1/
-│   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match
+│   └╌╌ beam_validate              optional: same contract on Apache Beam, counts must match 
 │
 ├── 4 TRANSFORM
 │   ├── step5_features             group_id, A/B swap → label, lengths, refusal flags
