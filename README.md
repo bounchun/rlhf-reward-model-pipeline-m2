@@ -56,8 +56,11 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │                                  2 service accounts: pipeline-sa writes, train-sa reads main only
 │
 ├── 2 INGEST
-│   ├── step1_scrape_raw           8 raw files (4 subsets × train/test) over HTTPS
-│   │                              ──▶ data/downloads/, each checked against its pinned SHA-256
+│   ├── step1_scrape_raw           downloads the 8 raw files from Hugging Face over HTTPS
+│   │                              (4 subsets: helpful-base, harmless-base, helpful-online,
+│   │                              helpful-rejection-sampled; a train and a test file for each)
+│   │                              ──▶ data/downloads/ (local), every file's SHA-256 checked
+│   │                              against the hashes pinned in manifests/raw-<commit>.json                                 
 │   └── step2_store_raw            upload, read back, verify ─────▶ main bucket: raw/ (write-once)
 │
 ├── 3 VALIDATE
