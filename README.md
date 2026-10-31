@@ -178,7 +178,7 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 | Access control | Uniform bucket-level access, public access prevention on | Same | Permissions only through IAM roles, no per-object ACLs; the data contains harmful text and must never be public |
 | Object versioning | On | On | An overwritten or deleted file can be recovered |
 | Lifecycle (`scripts/gcs_lifecycle.json`) | Delete a non-current version when 4 newer ones exist or after 90 days | Same | Keeps versioning from growing the bill forever |
-| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: **no role** | The training identity can read train/dev but cannot see the test set |
+| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: no role | The training identity can read train/dev but cannot see the test set |
 
 **How the data is organised.** Every dataset version gets its own folder (`processed/v1.1/`, `quarantine/v1.1/`, `audit/v1.1/`, holdout `v1.1/`), so v1.0 and v1.1 sit side by side and nothing is overwritten between versions. Raw files are keyed by the Hugging Face commit (`raw/hh-rlhf/<commit>/<subset>/<split>.jsonl.gz`), so a different upstream revision could never be mixed in. The full layout is the bucket tree in [M2.1](#m21-pipeline-architecture). Interim files (`data/interim/`) never go to a bucket, because before the split they still contain test rows.
 
