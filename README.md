@@ -240,11 +240,11 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 **What changed after Milestone 1.** The bucket design (two buckets, storage classes, versioning, IAM roles) is unchanged, since the v1.0 run showed it worked well. What changed is how the pipeline uses the buckets: 
 
-| Refinement | Why |
+| New in M2 | Reason |
 |---|---|
 | New `quarantine/<version>/` folder | Rejected rows are kept with reason, file and line, instead of being dropped (Lecture 6) |
 | New `audit/<version>/` folder with `validation_log.csv` and `reconciliation.json` | The proof that the data was checked is stored next to the data |
-| Processed data contract runs **before** upload | A bad split can no longer reach the bucket |
+| Processed data contract runs before upload | A bad split can no longer reach the bucket |
 | New `model_inputs/` in both buckets, with the train-fitted scaler | Milestone 3 reads ready-to-use inputs; the test inputs stay in the holdout bucket |
 | Step 11, the EDA and the reconciliation read from the buckets | Downstream work and checks use what is actually stored |
 
