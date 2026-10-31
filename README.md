@@ -94,7 +94,8 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   ├── step7_split                splits the working set 80/10/10 into train, dev and test by the
 │   │                              hash of the prompt group, so a prompt never appears in two splits;
 │   │                              flags very long replies, with the cut-off taken from train only
-│   │                              ──▶ data/interim/ (local) 
+│   │                              ──▶ data/interim/ (local)
+│   │  
 │   └── step8_shard                off by default: the data is small enough that one file per split
 │                                  is quicker to write and read than many shards 
 │
