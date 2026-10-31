@@ -171,6 +171,7 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 **How it is configured.** `scripts/setup_gcs.sh` creates both buckets in one go (cell 0b of the Colab notebook runs it too). Because the setup is a script rather than manual clicks in the console, anyone can repeat it exactly.
 
+
 | Setting | Main bucket `gs://bc-rlhf-reward-2026` | Holdout bucket `gs://bc-rlhf-reward-2026-holdout` | Reason |
 |---|---|---|---|
 | Location | `europe-west1` (Belgium) | `europe-west1` | A single region near Dublin is enough. The data can be rebuilt from the raw files, so paying extra for multi-region copies isn’t worth it|
@@ -189,6 +190,7 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 **How it fits into the pipeline.** Storage isn't just where the data ends up. Several later steps read their input back from the buckets, so they work on exactly what was stored rather than on a local copy that might differ.  
 
+
 | Step | Reads | Writes | Storage check |
 |---|---|---|---|
 | 2. Store raw | local downloads | `raw/hh-rlhf/<commit>/…` | Each file's SHA-256 is checked before upload, and again after reading it back; `raw/` is write-once, so a file with different content stops the run |
@@ -200,9 +202,11 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 | Reconcile | `raw/` and all 5 stored splits from the buckets | `audit/v1.1/reconciliation.json` | Stored files must match the manifest's SHA-256 and row counts |
 
 **Evidence.**
-- `manifests/v1.1.json` (also copied to `gs://bc-rlhf-reward-2026/manifests/`) records the `gs://` URI, SHA-256, size and row count of every stored file, for example `gs://bc-rlhf-reward-2026/processed/v1.1/train.parquet`, 24,122 rows, 20.1 MB, and `gs://bc-rlhf-reward-2026-holdout/v1.1/test.parquet`, 3,004 rows.
-- The reconciliation reads the five splits back from the buckets: all SHA-256 hashes and row counts match the manifest.
-- The "Verify the buckets and read a file back" cell in the Colab notebook lists both buckets and loads `dev.parquet` straight from GCS (`Rows loaded: 2,876`).
+
+- **The manifest.** `manifests/v1.1.json`, with a copy in `gs://bc-rlhf-reward-2026/manifests/`, lists every stored file with its `gs://` location, SHA-256 hash, size and row count. For example, `gs://bc-rlhf-reward-2026/processed/v1.1/train.parquet` has 24,122 rows (20.1 MB), and `gs://bc-rlhf-reward-2026-holdout/v1.1/test.parquet` has 3,004 rows.
+- **The reconciliation.** It reads the five splits back from the buckets: all SHA-256 hashes and row counts match the manifest.
+- **The Colab notebook.** The "Verify the buckets and read a file back" cell lists the contents of both buckets and loads `dev.parquet` directly from GCS (`Rows loaded: 2,876`).
+  
 - Screenshots of the main bucket settings and of the four v1.1 folders after the run:
 
 *Main bucket settings: region, uniform access, public access prevention, versioning, 2 lifecycle rules*
