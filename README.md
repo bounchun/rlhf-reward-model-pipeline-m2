@@ -1,6 +1,12 @@
 # 👍👎 Response Preference Prediction (RLHF Reward Modeling) — Milestone 2
 
-This is Milestone 2 of my Data Handling and Infrastructure for AI project. It picks up where Milestone 1 left off, in bounchun/rlhf-reward-model-pipeline-m1 (release data-v1.0), and the full commit history came across with it, so you can trace how the project got from M1 to M2. Anything from Milestone 1 that stayed the same is covered in [Builds on Milestone 1](#-builds-on-milestone-1).
+This is Milestone 2 of my Data Handling and Infrastructure for AI project. It picks up where Milestone 1 left off, in [bounchun/rlhf-reward-model-pipeline-m1](https://github.com/bounchun/rlhf-reward-model-pipeline-m1) (release `data-v1.0`), and the full commit history came across with it, so you can trace how the project got from M1 to M2. This README is self-contained: you do not need the M1 report to follow it.
+
+How it is organised:
+1. [Project summary and Milestone 1 decisions](#m20-project-summary-and-milestone-1-decisions): what the project is and what was already decided.
+2. [Revised decisions](#m24-changes-since-v10-and-why): what changed after Milestone 1, and why.
+3. Milestone 2 implementation and evidence: [pipeline](#m21-pipeline-architecture), [storage](#m22-storage-implementation-and-evidence), [EDA](#m23-what-the-eda-found-and-what-it-changed).
+4. [Results and validation](#m25-v11-run-on-the-real-data), then [limitations and reflection](#m26-limitations-and-reflection).
 
 | | |
 |---|---|
@@ -8,17 +14,32 @@ This is Milestone 2 of my Data Handling and Infrastructure for AI project. It pi
 | **Data** | [`Anthropic/hh-rlhf`](https://huggingface.co/datasets/Anthropic/hh-rlhf), MIT licence, pinned to commit `09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa` |
 | **Dataset version** | v1.1 (M1 was v1.0). The raw data and split haven’t changed. M2 adds new validation checks, moves failed rows into quarantine instead of dropping them, masks personal data, and produces inputs the model can use directly |
 
+### M2.0 Project summary and Milestone 1 decisions
+
+The project builds the data side of a reward model for RLHF: given a conversation and two replies, predict which reply a crowdworker preferred. Milestone 1 chose the dataset, the split and the storage, and already implemented the pipeline that downloads, cleans, splits and stores the data in Google Cloud Storage (release `data-v1.0`). Milestone 2 uses that working pipeline as its starting point and extends it with EDA, data contracts, quarantine, monitoring and independent verification. The table below summarises the Milestone 1 decisions that still hold; what changed is in [M2.4](#m24-changes-since-v10-and-why).
+
+| Decision | Summary |
+|---|---|
+| Task and target | Binary: `label` = 1 if reply A was preferred. Inputs: context and the two replies; subset, split and flags are for evaluation only |
+| Split | Grouped by the hashed first Human message; 20% of groups reserved as "future" data (F1, F2); 30,002-pair working set split 80/10/10 by `sha256(group_id + salt) % 10`; anything learned from data is fitted on train only |
+| Storage | Object storage (Google Cloud Storage), not a database: the data is written once in batches and read whole by training, with no transactional queries. Two buckets: `gs://bc-rlhf-reward-2026` (Standard) and `gs://bc-rlhf-reward-2026-holdout` (Coldline: test, F1, F2). How this was implemented and refined in M2 is in [M2.2](#m22-storage-implementation-and-evidence) |
+| Formats | Raw JSONL.gz as downloaded; Parquet for processed data; JSON manifests; CSV/JSON audit files |
+| Versioning | `vMAJOR.MINOR` folders + manifest + Git tag (`data-v1.0`, now `data-v1.1`); MINOR = cleaning rules changed |
+| Bias and poisoning | Audit plan and poisoning defences: M1 README sections 11–12; extended here by the datasheet and the leakage audit |
+
 ## 🧭 Milestone 2 at a glance (dataset version v1.1)
 
 | Milestone 2 requirement | Where it is |
 |---|---|
-| EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.2](#m22-what-the-eda-found-and-what-it-changed) |
+| EDA that drives decisions | `src/eda.py` (`make eda`) → 9 figures, `docs/eda/eda_summary.json` and `docs/eda/findings.csv` (finding → decision → limitation). Summary in [M2.3](#m23-what-the-eda-found-and-what-it-changed) |
 | Pipeline: acquire → validate → store → transform | Steps 1–11, run with (`make all`). The full pipeline is laid out in [M2.1](#m21-pipeline-architecture) |
+| Storage implementation | Two configured GCS buckets, used by every step through one storage layer; every stored file's URI, SHA-256 and row count is in the manifest and re-checked from the bucket. See [M2.2](#m22-storage-implementation-and-evidence) |
 | Validation that fails loudly | `src/contract.py` holds two data contracts. The raw contract runs in step 3: any row that fails is moved to a quarantine file, along with the reason, the source file and the line number. The processed contract runs in step 9 and checks  17 rules, logging the results to `audit/v1.1/validation_log.csv`. If a HARD rule fails, the pipeline stops before anything gets uploaded. |
 | Cleaning and transformation | In step 3 the text gets normalised, PII is masked, and anything broken is quarantined (there are 7 reasons a row can end up there). Step 5 does the A/B swap and builds the features. Step 7 adds an outlier flag, using thresholds fitted on the training set only. Step 11 gets everything ready for the model: contexts are cut from the left, and the log-length features are scaled with the training mean and standard deviation.|
 | Second method / reconciliation | `src/reconcile.py` (run it with `make reconcile`) recounts everything straight from the raw files using plain Python, independently of the pipeline. Its numbers have to match the pipeline’s on all 7 checks.|
 | Reproducibility | The data commit and library versions are pinned, and the splits are hash-based, so rerunning the pipeline gives byte-identical output (there’s a test for this). On every push, GitHub Actions runs the 43 tests and an offline demo (see .github/workflows/ci.yml).|
-| Changes since v1.0 | [M2.3](#m23-changes-since-v10-and-why) |
+| Changes since v1.0 | [M2.4](#m24-changes-since-v10-and-why) |
+| Limitations and reflection | [M2.6](#m26-limitations-and-reflection) |
 
 ### M2.1 Pipeline architecture
 
@@ -77,7 +98,74 @@ gs://bc-rlhf-reward-2026-holdout              (Coldline · training account has 
 
 **ETL, not ELT.** All the transformations (parsing the conversations, swapping A and B, hashing the groups and masking personal data) are written in Python rather than SQL. The raw files only add up to 79 MB, so everything runs in a single Python process, which takes about 2½ minutes for steps 1 to 11. Only the cleaned Parquet files get loaded into storage. The raw files are still kept as they are, in a write-once, versioned bucket, so I can still do what ELT is good for: change a rule and rerun everything from the raw data. I looked at Apache Beam and Dataflow (Lecture 6), but at this size they would cost more and add extra setup for no real gain. The pipeline still uses the same ideas, though: every row is checked against a data contract, rejected rows go to quarantine with a reason, each step keeps counts, reruns give the same result, and an independent recount checks the final numbers.
 
-### M2.2 What the EDA found, and what it changed
+### M2.2 Storage: implementation and evidence
+
+Milestone 1 chose object storage and justified it. Milestone 2 does not repeat that argument: this section shows how the storage is configured, how the data is organised and accessed, how each pipeline step uses it, and what was refined after Milestone 1. The buckets were first created in M1; v1.1 builds on them, adds new folders and checks, and was written by a full Colab run on 26 Oct 2026.
+
+**How it is configured.** `scripts/setup_gcs.sh` creates both buckets in one go (it is also cell 0b of the Colab notebook), so the setup is code, not console clicks.
+
+| Setting | Main bucket `gs://bc-rlhf-reward-2026` | Holdout bucket `gs://bc-rlhf-reward-2026-holdout` | Why |
+|---|---|---|---|
+| Location | `europe-west1` (Belgium) | `europe-west1` | One region, close to Dublin; no multi-region cost for data that is easy to rebuild |
+| Storage class | Standard | Coldline | Train/dev are read on every run; test/F1/F2 are written once and read rarely |
+| Access control | Uniform bucket-level access, public access prevention on | Same | Permissions only through IAM roles, no per-object ACLs; the data contains harmful text and must never be public |
+| Object versioning | On | On | An overwritten or deleted file can be recovered |
+| Lifecycle (`scripts/gcs_lifecycle.json`) | Delete a non-current version when 4 newer ones exist or after 90 days | Same | Keeps versioning from growing the bill forever |
+| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: **no role** | The training identity can read train/dev but cannot see the test set |
+
+**How the data is organised.** Every dataset version gets its own folder (`processed/v1.1/`, `quarantine/v1.1/`, `audit/v1.1/`, holdout `v1.1/`), so v1.0 and v1.1 sit side by side and nothing is overwritten between versions. Raw files are keyed by the Hugging Face commit (`raw/hh-rlhf/<commit>/<subset>/<split>.jsonl.gz`), so a different upstream revision could never be mixed in. The full layout is the bucket tree in [M2.1](#m21-pipeline-architecture). Interim files (`data/interim/`) never go to a bucket, because before the split they still contain test rows.
+
+**How it is accessed.** All reads and writes go through one small storage layer in `src/common.py` (`write_bytes`, `read_bytes`, `read_parquet`, `exists`), which uses `gcsfs` with Application Default Credentials (the Google login in Colab). The bucket name comes from the `DHAI_BUCKET` Colab Secret or environment variable; it is not in the code or in `config.json`, and no key file exists anywhere. When `DHAI_BUCKET` is empty, the same code writes to `data/lake/` and `data/holdout/` instead, which is how the 43 tests and the offline demo run in CI without a Google Cloud account. Milestone 3 will read the model inputs the same way, e.g. `pd.read_parquet("gs://bc-rlhf-reward-2026/processed/v1.1/model_inputs/train.parquet")`.
+
+**How it fits into the pipeline.** Storage is not only the last step: later steps read back from the buckets, so they work on exactly what was stored, not on a local copy.
+
+| Step | Reads | Writes | Storage check |
+|---|---|---|---|
+| 2 Store raw | local downloads | `raw/hh-rlhf/<commit>/…` | SHA-256 checked before upload; `raw/` is write-once (different bytes ⇒ error); every object read back and re-hashed |
+| 3 Clean | **`raw/` from the bucket** | `quarantine/v1.1/quarantine.parquet` | SHA-256 of each raw object re-checked before parsing |
+| 4 Quality checks | local cleaned data | `audit/v1.1/` | — |
+| 9 Store processed | local splits | `processed/v1.1/{train,dev}`; holdout `v1.1/{test,future_f1,future_f2}` | 17-rule contract first: a HARD violation ⇒ nothing uploaded; URI, SHA-256, bytes and rows of every file recorded in the manifest |
+| 11 Model inputs | **all 5 splits from the buckets** | `processed/v1.1/model_inputs/` and holdout `v1.1/model_inputs/` | Scaler fitted on train only, saved as `numeric_scaler.json` |
+| Sample queries, EDA | **train/dev and quarantine from the main bucket** | `audit/v1.1/`, `docs/eda/` | Never read the holdout bucket |
+| Reconcile | **`raw/` and all 5 stored splits from the buckets** | `audit/v1.1/reconciliation.json` | Stored files must match the manifest's SHA-256 and row counts |
+
+**Evidence.**
+- `manifests/v1.1.json` (also copied to `gs://bc-rlhf-reward-2026/manifests/`) records the `gs://` URI, SHA-256, size and row count of every stored file, for example `gs://bc-rlhf-reward-2026/processed/v1.1/train.parquet`, 24,122 rows, 20.1 MB, and `gs://bc-rlhf-reward-2026-holdout/v1.1/test.parquet`, 3,004 rows.
+- The reconciliation reads the five splits back from the buckets: all SHA-256 hashes and row counts match the manifest.
+- The "Verify the buckets and read a file back" cell in the Colab notebook lists both buckets and loads `dev.parquet` straight from GCS (`Rows loaded: 2,876`).
+- Screenshots of the main bucket settings and of the four v1.1 folders after the run:
+
+*Main bucket settings: region, uniform access, public access prevention, versioning, 2 lifecycle rules*
+
+![bucket settings](docs/img/screenshot_bucket_settings.png)
+
+*(a) Main bucket, `processed/v1.1/`*
+
+![processed/v1.1](docs/img/m2_bucket_processed_v1.1.png)
+
+*(b) Main bucket, `quarantine/v1.1/`*
+
+![quarantine/v1.1](docs/img/m2_bucket_quarantine_v1.1.png)
+
+*(c) Main bucket, `audit/v1.1/` (with `validation_log.csv` and `reconciliation.json`)*
+
+![audit/v1.1](docs/img/m2_bucket_audit_v1.1.png)
+
+*(d) Holdout bucket (Coldline), `v1.1/`*
+
+![holdout v1.1](docs/img/m2_bucket_holdout_v1.1.png)
+
+**What changed after Milestone 1.** The bucket design (two buckets, classes, versioning, IAM) is unchanged, because the v1.0 run showed it worked. The refinements are in how the pipeline uses it:
+
+| Refinement | Why |
+|---|---|
+| New `quarantine/<version>/` folder | Rejected rows are kept with reason, file and line, instead of being dropped (Lecture 6) |
+| New `audit/<version>/` folder with `validation_log.csv` and `reconciliation.json` | The proof that the data was checked is stored next to the data |
+| Processed data contract runs **before** upload | A bad split can no longer reach the bucket |
+| New `model_inputs/` in both buckets, with the train-fitted scaler | Milestone 3 reads ready-to-use inputs; the test inputs stay in the holdout bucket |
+| Step 11, the EDA and the reconciliation read from the buckets | Downstream work and checks use what is actually stored |
+
+### M2.3 What the EDA found, and what it changed
 
 All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`). Structure and quality checks look at all rows; distributions and relationships use **train only**; baselines are fitted on train and scored on dev; the holdout bucket is never read.
 
@@ -138,12 +226,13 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 The dataset itself is documented in **[`docs/DATASHEET.md`](docs/DATASHEET.md)**, following Gebru et al. (2021).
 
-### M2.3 Changes since v1.0, and why
+### M2.4 Changes since v1.0, and why
 
-The data split, storage and access design from Milestone 1 are **unchanged** (same salts, same buckets). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
+The data split is **unchanged** (same salts), and so are the two buckets and their access rules; how the pipeline uses the storage was refined (see [M2.2](#m22-storage-implementation-and-evidence)). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
 
 | Change | Why |
 |---|---|
+| Storage use: new `quarantine/`, `audit/` and `model_inputs/` folders; contract checked before upload; later steps read back from the buckets | Milestone 2 asks for storage that supports the whole pipeline, not only a place to put the final files |
 | Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Lecture 6: "don't crash, don't hide"; every rejected row keeps its reason, file and line number |
 | Processed data contract + `validation_log.csv` | Lecture 5: record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
 | PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed before masking so pair ids and splits do not move |
@@ -151,7 +240,7 @@ The data split, storage and access design from Milestone 1 are **unchanged** (sa
 | Step 11 model-ready inputs | Lecture 5: fit on train, transform every split; prepares M3 |
 | `reconcile.py`, `eda.py`, CI workflow | Evidence that the pipeline is correct and reproducible |
 
-### M2.4 v1.1 run on the real data
+### M2.5 v1.1 run on the real data
 
 | Check | Result |
 |---|---|
@@ -164,25 +253,29 @@ The data split, storage and access design from Milestone 1 are **unchanged** (sa
 | Reconciliation | all 7 independent checks agree |
 | EDA | 9 figures + 13 findings in `docs/eda/` |
 | Cross-validation (Lecture 5) | length × subset (ColumnTransformer pipeline): 56.9% random-row vs 56.7% group 5-fold CV, 57.9% dev; bag of words: 54.9% vs 54.9%, 54.8% dev |
-| Storage (Colab run, 26 Oct 2026) | train/dev, model inputs, quarantine and audit files in `gs://bc-rlhf-reward-2026` (Standard); test/F1/F2 and their model inputs only in `gs://bc-rlhf-reward-2026-holdout` (Coldline); manifest committed as `manifests/v1.1.json`, tag `data-v1.1` |
+| Storage (Colab run, 26 Oct 2026) | train/dev, model inputs, quarantine and audit files in `gs://bc-rlhf-reward-2026` (Standard); test/F1/F2 and their model inputs only in `gs://bc-rlhf-reward-2026-holdout` (Coldline); stored files re-read and matched to the manifest; manifest committed as `manifests/v1.1.json`, tag `data-v1.1`. Screenshots in [M2.2](#m22-storage-implementation-and-evidence) |
 
-**Buckets after the v1.1 Colab run**
+### M2.6 Limitations and reflection
 
-*(a) Main bucket, `processed/v1.1/`*
+**Limitations**
 
-![processed/v1.1](docs/img/m2_bucket_processed_v1.1.png)
+| Limitation | Effect | What would fix it |
+|---|---|---|
+| The Colab run uses my own Google login, not `pipeline-sa` | The service accounts and their IAM roles are configured, but the run did not exercise them, so "the training account cannot read the holdout bucket" is set up, not tested | Run the pipeline and a training read as the service accounts (e.g. with impersonation) and record the expected `403` on the holdout bucket |
+| No timestamps in hh-rlhf | F1/F2 are held-out groups, not truly later data; they cannot measure drift over time | A dataset with collection dates, or new preference data collected later |
+| The test set represents this collection process | Results will describe crowdworkers on these four subsets, not real users | Evaluate on a differently collected preference set |
+| Single-machine processing | Fine at 79 MB; Beam runs locally but was not tested on Dataflow | Run `beam_validate.py` with `DataflowRunner` if the data grows |
+| PII masking is pattern-based (e-mail, phone) | Names, addresses and other personal details in free text are not masked | A named-entity based PII detector |
+| Per-subset test accuracy is only known to about ±3–5 points | Small differences between subsets cannot be claimed in M3 | Larger test groups, or reporting pooled results with intervals |
+| No `models/` folder yet | Model artifacts are not stored | Added in Milestone 3, in the same main bucket and versioned the same way |
 
-*(b) Main bucket, `quarantine/v1.1/`*
+**Reflection**
 
-![quarantine/v1.1](docs/img/m2_bucket_quarantine_v1.1.png)
-
-*(c) Main bucket, `audit/v1.1/` (with `validation_log.csv` and `reconciliation.json`)*
-
-![audit/v1.1](docs/img/m2_bucket_audit_v1.1.png)
-
-*(d) Holdout bucket (Coldline), `v1.1/`*
-
-![holdout v1.1](docs/img/m2_bucket_holdout_v1.1.png)
+- *Implementing storage early paid off.* Because the buckets already worked after Milestone 1, Milestone 2 could focus on how the pipeline uses them: checking before upload, keeping rejected rows, and reading back from storage to verify. Most of the trust in the data now comes from these checks rather than from the bucket itself.
+- *The EDA changed the pipeline, not just the report.* The always-`chosen` label, the typographic apostrophe in the refusal rule and the subset-dependent length effect were all found in the data and each led to a code change and a test.
+- *Independent checks caught real problems.* The Beam comparison exposed a multi-member gzip reading bug (44,044 of 169,352 rows) that the pandas pipeline alone would not have revealed. I would build the reconciliation first next time, not last.
+- *Keeping claims precise.* Some early wording overstated things ("no leakage", "Dataflow-ready"). These were changed to what the evidence supports: "no measurable inflation for these models" and "planned, not implemented".
+- *For Milestone 3:* train against `model_inputs/`, beat the per-subset length baselines on every subset, report group-bootstrap intervals, and test the service-account separation.
 
 ---
 
@@ -206,7 +299,7 @@ It should end with `OK` (43 tests passed; the Apache Beam test runs when `requir
 3. In the first code cell, set `GCP_PROJECT` to your project ID.
 4. Run the cells from top to bottom. Run 0b once to create your buckets (skip it if they already exist from Milestone 1), and skip the cells marked *skip*.
 
-The run takes about 5–10 minutes and gives the same numbers as in [M2.4](#m24-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The last Milestone 2 cell downloads `docs/eda/` and `manifests/v1.1.json` to commit.
+The run takes about 5–10 minutes and gives the same numbers as in [M2.5](#m25-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The last Milestone 2 cell downloads `docs/eda/` and `manifests/v1.1.json` to commit.
 
 To check the stored data without rerunning the pipeline, run only Settings, Install and Login, then the Verify the buckets and read a file back cell. Like Cell 8 of the GCS lab, it lists every file in both buckets and reads `dev.parquet` straight from the bucket with pandas. You should see the raw, quarantine, processed, audit and manifest files in the main bucket, only `test`, `future_f1`, `future_f2` and their `model_inputs` in the holdout bucket, and `Rows loaded: 2,876`. It shows only non-text columns, because the dataset contains harmful text.
 
@@ -263,22 +356,6 @@ Interim files (`data/interim/`) stay local and are never committed: before the s
 
 ---
 
-## 🔗 Builds on Milestone 1
-
-These decisions are unchanged from Milestone 1 and are only summarised here. 
-
-| Decision | Summary |
-|---|---|
-| Task and target | Binary: `label` = 1 if reply A was preferred. Inputs: context and the two replies; subset, split and flags are for evaluation only |
-| Split | Grouped by the hashed first Human message; 20% of groups reserved as "future" data (F1, F2); 30,002-pair working set split 80/10/10 by `sha256(group_id + salt) % 10`; anything learned from data is fitted on train only |
-| Storage | Object storage only: `gs://bc-rlhf-reward-2026` (Standard: raw, quarantine, processed, audit, manifests) and `gs://bc-rlhf-reward-2026-holdout` (Coldline: test, F1, F2), versioned, private |
-| Formats | Raw JSONL.gz as downloaded; Parquet for processed data; JSON manifests; CSV/JSON audit files |
-| Versioning | `vMAJOR.MINOR` folders + manifest + Git tag (`data-v1.0`, now `data-v1.1`); MINOR = cleaning rules changed |
-| Access | `gcsfs` with Application Default Credentials; bucket name from a Colab Secret; `pipeline-sa` writes, `train-sa` reads the main bucket only |
-| Bias and poisoning | Audit plan and poisoning defences: M1 README sections 11–12; extended here by the datasheet and the leakage audit |
-
----
-
 ## 📚 References used in Milestone 2
 
 - Bai, Y. et al. (2022). [*Training a Helpful and Harmless Assistant with RLHF*](https://arxiv.org/abs/2204.05862).
@@ -292,11 +369,7 @@ These decisions are unchanged from Milestone 1 and are only summarised here.
 - Grósz, T. and Wahid, A. (2026). *Data Handling and Infrastructure for AI*, Lectures 4–6 and Labs 4–6, SETU.
 - Rando, J. and Tramèr, F. (2024). [*Universal Jailbreak Backdoors from Poisoned Human Feedback*](https://arxiv.org/abs/2311.14455). ICLR.
 
-The Milestone 1 reading list (bias, auditing, data poisoning, Google Cloud documentation) is in the [M1 README]({M1}#-further-resources).
-
----
-
-
+The Milestone 1 reading list (bias, auditing, data poisoning, Google Cloud documentation) is in the [M1 README](https://github.com/bounchun/rlhf-reward-model-pipeline-m1#-further-resources).
 
 ---
 
