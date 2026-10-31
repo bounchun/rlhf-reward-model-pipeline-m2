@@ -299,7 +299,7 @@ It should end with `OK` (43 tests passed; the Apache Beam test runs when `requir
 3. In the first code cell, set `GCP_PROJECT` to your project ID.
 4. Run the cells from top to bottom. Run 0b once to create your buckets (skip it if they already exist from Milestone 1), and skip the cells marked *skip*.
 
-The run takes about 5–10 minutes and gives the same numbers as in [M2.5](#m25-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The last Milestone 2 cell downloads `docs/eda/` and `manifests/v1.1.json` to commit.
+The run takes about 5–10 minutes and gives the same numbers as in [M2.5](#m25-v11-run-on-the-real-data), because the split uses hashes, not random numbers. The EDA cells show the 9 figures inline, and the cell after them downloads `docs/eda/` and `manifests/v1.1.json` to commit. This is a new notebook for Milestone 2 only; the Milestone 1 notebook stays in the M1 repository.
 
 To check the stored data without rerunning the pipeline, run only Settings, Install and Login, then the Verify the buckets and read a file back cell. Like Cell 8 of the GCS lab, it lists every file in both buckets and reads `dev.parquet` straight from the bucket with pandas. You should see the raw, quarantine, processed, audit and manifest files in the main bucket, only `test`, `future_f1`, `future_f2` and their `model_inputs` in the holdout bucket, and `Rows loaded: 2,876`. It shows only non-text columns, because the dataset contains harmful text.
 
@@ -342,7 +342,7 @@ requirements.txt             pinned versions (Python 3.13); requirements-beam.tx
 Makefile                     make all | scrape | store | preprocess | queries | reconcile | eda | beam | test | demo
 src/                         the steps above + common.py (storage, hashing, manifests) and text_utils.py
 tests/                       43 unittest tests on synthetic data with planted defects (tests/fake_data.py)
-notebooks/run_pipeline_colab.ipynb   Colab runner (Google login + Colab Secret, no credentials in code)
+notebooks/run_pipeline_colab.ipynb   Milestone 2 Colab runner: steps 1-11, reconcile, EDA figures (Google login + Colab Secret)
 manifests/                   dataset manifests (lineage: checksums, counts, code commit)
 docs/eda/                    EDA outputs (aggregates only, no dataset text)
 docs/DATASHEET.md            datasheet for the processed v1.1 data
