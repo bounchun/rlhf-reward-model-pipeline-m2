@@ -138,7 +138,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
                                    (aggregates only, no dataset text, so safe to commit)
 
 
-gs://bc-rlhf-reward-2026           (main bucket · standard storage· versioning on) 
+gs://bc-rlhf-reward-2026           (main bucket · Standard storage· versioning on) 
 ├── raw/                           original Hugging Face files, never changed: if a cleaning
 │                                  rule turns out to be wrong, I fix it and rerun from these
 │                                    
