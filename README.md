@@ -124,7 +124,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
     │                              example pandas queries on them, to check the stored data makes
     │                              sense (never reads the holdout bucket)
     │                              results ────────────────────────▶ main bucket: audit/v1.1/sample_queries.json
-
+    │    
     ├── reconcile                  recounts everything straight from the raw files in plain Python,
     │                              without the pipeline code, and reads the 5 stored splits back
     │                              from the buckets; all 7 checks must match the pipeline's numbers
@@ -137,9 +137,13 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
                                    (aggregates only, no dataset text, so safe to commit)
 
 
-gs://bc-rlhf-reward-2026                      (main bucket · Standard · versioning on)
-├── raw/                           original files from Hugging Face, write-once
-├── quarantine/v1.1/               rejected rows with reason, file and line
+gs://bc-rlhf-reward-2026                      (main bucket · Standard storage· versioning on) 
+├── raw/                           original Hugging Face files, never changed: if a cleaning
+│                                  rule turns out to be wrong, I fix it and rerun from these
+│                                    
+├── quarantine/v1.1/               rows rejected by step 3, each with the reason and the file
+│                                  and line it came from; kept instead of deleted
+│  
 ├── processed/v1.1/                train.parquet, dev.parquet
 │   └── model_inputs/              train, dev, numeric_scaler.json ──▶ read by Milestone 3
 ├── audit/v1.1/                    validation log, quality report, queries, reconcile
