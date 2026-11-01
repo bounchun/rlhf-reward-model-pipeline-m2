@@ -333,20 +333,19 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 | Check | Result |
 |---|---|
-| Raw input | 8 files, all SHA-256 checksums equal to `manifests/raw-09be8c5….json` |
-| Row accounting (step 3) | 169,352 read = 168,029 kept + 1,323 quarantined (788 identical replies · 329 context mismatch · 194 empty · 11 malformed turns · 1 identical after PII masking) |
-| Quality checks (step 4) | all 6 hard checks pass, 0 e-mail / phone patterns left, poisoning screen: 0 flagged |
-| Splits (step 7) | train 24,122 · dev 2,876 · test 3,004 · F1 16,516 · F2 16,652 — identical to v1.0 |
-| Data contract (step 9) | 17 rules × 5 splits, 0 violations, 0 warnings |
-| Model inputs (step 11) | scaler fitted on 24,122 train rows; 9.7% of train contexts truncated (8.3% dev) |
-| Reconciliation | all 7 independent checks agree |
-| EDA | 9 figures + 13 findings in `docs/eda/` |
-| Cross-validation (Lecture 5) | length × subset (ColumnTransformer pipeline): 56.9% random-row vs 56.7% group 5-fold CV, 57.9% dev; bag of words: 54.9% vs 54.9%, 54.8% dev |
-| Storage (Colab run, 26 Oct 2026) | train/dev, model inputs, quarantine and audit files in `gs://bc-rlhf-reward-2026` (Standard); test/F1/F2 and their model inputs only in `gs://bc-rlhf-reward-2026-holdout` (Coldline); stored files re-read and matched to the manifest; manifest committed as `manifests/v1.1.json`, tag `data-v1.1`. Screenshots in [M2.2](#m22-storage-implementation-and-evidence) |
+| Raw input | All 8 files have SHA-256 checksums that match the ones pinned in `manifests/raw-09be8c5….json` |
+| Row accounting (step 3) | All 169,352 rows read are accounted for: 168,029 kept and 1,323 quarantined (788 with identical replies, 329 with a context mismatch, 194 with an empty reply, 11 with malformed turns and 1 that became identical after PII masking) |
+| Quality checks (step 4) | All 6 hard checks pass, no e-mail or phone patterns remain, and the poisoning screen flags no pairs |
+| Splits (step 7) | Train 24,122, dev 2,876, test 3,004, F1 16,516 and F2 16,652 pairs - identical to v1.0 |
+| Data contract (step 9) | All 17 rules checked on each of the 5 splits, with no violations and no warnings |
+| Model inputs (step 11) | The scaler is fitted on the 24,122 train rows; 9.7% of train contexts and 8.3% of dev contexts are truncated |
+| Reconciliation | All 7 independent checks match the pipeline's numbers |
+| EDA | 9 figures and 13 findings, saved in `docs/eda/` |
+| Cross-validation | Length × subset model (ColumnTransformer pipeline): 56.9% with random-row folds vs 56.7% with group 5-fold CV, and 57.9% on dev. Bag of words: 54.9% with both fold types, and 54.8% on dev |
+| Storage (Colab run, 26 Oct 2026) | Train, dev, their model inputs, the quarantine and the audit files are stored in `gs://bc-rlhf-reward-2026` (Standard); test, F1, F2 and their model inputs are stored only in `gs://bc-rlhf-reward-2026-holdout` (Coldline). Every stored file was read back and matched against the manifest, which is committed as `manifests/v1.1.json` with the tag `data-v1.1`. Screenshots are in [M2.2](#m22-storage-implementation-and-evidence) |
+
 
 ### M2.6 Limitations and reflection
-
-The same limitations and reflection are in the report (section 7).
 
 **Limitations**
 
