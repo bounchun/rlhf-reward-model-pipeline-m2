@@ -301,16 +301,16 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 ### Leakage audit (Kapoor & Narayanan, 2023)
 
-| Leakage type | Status in this project |
+| Leakage type | How this project handles it |
 |---|---|
-| L1.1 No test set | Group-held-out test set in a separate bucket that the training account cannot read |
-| L1.2 Pre-processing on train and test | Outlier threshold, scaler and refusal phrases are derived from train only; tested |
-| L1.3 Feature selection on train and test | No feature selection; evaluation slices fixed in `config.json` before the test set is used |
-| L1.4 Duplicates | Exact duplicates quarantined; contract rule "no `pair_id` in two splits"; 0 repeated comparisons |
-| L2 Illegitimate features | The `chosen` position is neutralised by the A/B swap; `subset`, `split` and the flags are evaluation variables, not model inputs |
-| L3.1 Temporal leakage | No timestamps exist; F1/F2 are not truly later data (documented limitation) |
-| L3.2 Non-independence between train and test | Split by prompt group; the official split would leak 92% of test prompts |
-| L3.3 Sampling bias in the test distribution | Test is drawn like train (same subset mix): it represents this collection process, not real users |
+| L1.1 No test set | The test set is made of held-out prompt groups and stored in a separate bucket that the training account has no permission to read |
+| L1.2 Pre-processing on train and test | The outlier threshold, the scaler and the refusal phrases are all learned from train only, verified by tests |
+| L1.3 Feature selection on train and test | No feature selection is done; the evaluation slices are fixed in `config.json` before the test set is used |
+| L1.4 Duplicates | Exact duplicates are sent to quarantine; the data contract fails the run if a `pair_id` appears in two splits; no comparison appears twice |
+| L2 Illegitimate features | A/B swap removes the clue given by the `chosen` position; `subset`, `split` and the flags are used only to break down the evaluation, never as model inputs |
+| L3.1 Temporal leakage | The dataset has no timestamps, so F1 and F2 are held-out prompt groups, not genuinely later data (see Limitations) |
+| L3.2 Non-independence between train and test | Data is split by prompt group, so no prompt appears in both train and test; the official split would have put 92% of test prompts in train as well |
+| L3.3 Sampling bias in the test distribution | The test set is sampled the same way as train (same mix of subsets), so it reflects how this dataset was collected, not how real users would behave |
 
 The dataset itself is documented in **[`docs/DATASHEET.md`](docs/DATASHEET.md)**, following Gebru et al. (2021).
 
