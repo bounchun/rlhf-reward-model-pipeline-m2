@@ -285,7 +285,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 **Apache Beam (optional, `make beam`).** `src/beam_validate.py` re-implements step 3's data contract as a Beam pipeline. It uses a `DoFn` to read the files, a `Validate` `DoFn` that sends failing rows to a tagged `bad` output, Beam `Metrics` counters, and a `CombinePerKey` to detect duplicates. Every counter is then compared with the pandas version of step 3, and on the real data all 10 counts match (169,352 read, 168,029 kept, 1,323 quarantined, broken down by reason). This cross-check proved its worth early: in the first version, Beam's built-in `.gz` reader returned only 44,044 rows, and the count mismatch revealed the problem immediately. Running the pipeline on Dataflow is planned but not implemented. The code relies only on portable Beam transforms, so it should run with `--runner DataflowRunner` and `apache-beam[gcp]`, but this has not been tested: at this data size, starting the workers would take longer than running the whole job on a single machine.
 
 
-### From lectures to pipeline rules (Weeks 4–6)
+### From EDA findings to pipeline rules and tests
 
 | Finding or principle | Evidence in EDA | Pipeline rule | Test that guards it |
 |---|---|---|---|
