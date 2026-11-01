@@ -320,12 +320,12 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 | What changed | Reason |
 |---|---|
-| Storage use: new `quarantine/`, `audit/` and `model_inputs/` folders; contract checked before upload; later steps read back from the buckets | Milestone 2 asks for storage that supports the whole pipeline, not only a place to put the final files |
+| Storage use: new `quarantine/`, `audit/` and `model_inputs/` folders; contract checked before upload; later steps read back from the buckets | M2 asks for storage that supports the whole pipeline, not only a place to put the final files |
 | Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Every rejected row keeps its reason, file and line number |
-| Processed data contract + `validation_log.csv` | Lecture 5: record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
+| Processed data contract + `validation_log.csv` | Record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
 | PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed before masking so pair ids and splits do not move |
 | Refusal phrases rebuilt | Planned in the M1 README and confirmed by the EDA | 
-| Step 11 model-ready inputs | Lecture 5: fit on train, transform every split; prepares M3 |
+| Step 11 model-ready inputs | Fit on train, transform every split; prepares M3 |
 | `reconcile.py`, `eda.py`, CI workflow | Evidence that the pipeline is correct and reproducible |
 
 
