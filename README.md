@@ -287,16 +287,16 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 ### From lectures to pipeline rules (Weeks 4–6)
 
-| Lecture | Finding or principle | Evidence in the EDA | Pipeline rule | Test that guards it |
-|---|---|---|---|---|
-| Week 4 | Repeated prompts break row independence | 93% of pairs share a prompt; 92% of official test prompts in official train | Group split; group bootstrap for intervals | `test_no_group_or_pair_overlap_between_any_splits`, contract rule "no group_id in two splits" |
-| Week 4 | Significance is not effect size | χ² p-values next to Cramér's V and a 16.1-point risk difference with CI | Effect sizes and intervals reported with every test | `test_group_bootstrap_widens_intervals_for_clustered_rows`, `test_benjamini_hochberg` |
-| Week 5 | Pooled results hide subset effects (Simpson) | Length and refusal effects reverse between subsets | Per-subset baselines and evaluation slices fixed in `config.json` | `test_eda_writes_figures_and_findings_without_reading_the_holdout` |
-| Week 5 | Investigate outliers before removing them | 1.5×IQR would flag 5% of valid replies | Flag above the train P99; `log1p` features | `test_outlier_threshold_fitted_on_train_only` |
-| Week 5 | Preprocessing must not learn from held-out data | Scaler, threshold and TF-IDF fitted on train / training folds | Train-fitted step 11 scaler; `GroupKFold` | `test_scaler_is_fitted_on_train_only`, `test_text_features_are_learned_on_the_training_fold_only` |
-| Week 6 | Invalid data must stay auditable | 1,323 rule violations, uneven by subset | Quarantine with reason + row accounting | `test_every_row_read_is_kept_or_quarantined`, `test_processed_contract_catches_a_corrupted_copy` |
-| Week 6 | Pipelines must survive reruns and schema changes | One field shape in all 8 files; max reject rate 1.3% | Whole-file outputs, write-once raw, field fingerprint and alerts | `test_rerun_is_byte_identical`, `test_alerts_for_schema_drift_and_reject_spike` |
-| Week 6 | Independent verification builds trust | Beam first read 44,044 of 169,352 rows | 7 reconciliation checks; Beam–pandas comparison | `test_reconciliation_catches_a_flipped_label`, `test_beam_pipeline_agrees_with_pandas_step3` |
+| Finding or principle | Evidence in EDA | Pipeline rule | Test that guards it |
+|---|---|---|---|
+| Repeated prompts break row independence | 93% of pairs share a prompt; 92% of official test prompts in official train | Group split; group bootstrap for intervals | `test_no_group_or_pair_overlap_between_any_splits`, contract rule "no group_id in two splits" 
+| Significance is not effect size | χ² p-values next to Cramér's V and a 16.1-point risk difference with CI | Effect sizes and intervals reported with every test | `test_group_bootstrap_widens_intervals_for_clustered_rows`, `test_benjamini_hochberg` |
+| Pooled results hide subset effects (Simpson) | Length and refusal effects reverse between subsets | Per-subset baselines and evaluation slices fixed in `config.json` | `test_eda_writes_figures_and_findings_without_reading_the_holdout` |
+| Investigate outliers before removing them | 1.5×IQR would flag 5% of valid replies | Flag above the train P99; `log1p` features | `test_outlier_threshold_fitted_on_train_only` |
+| Preprocessing must not learn from held-out data | Scaler, threshold and TF-IDF fitted on train / training folds | Train-fitted step 11 scaler; `GroupKFold` | `test_scaler_is_fitted_on_train_only`, `test_text_features_are_learned_on_the_training_fold_only` |
+| Invalid data must stay auditable | 1,323 rule violations, uneven by subset | Quarantine with reason + row accounting | `test_every_row_read_is_kept_or_quarantined`, `test_processed_contract_catches_a_corrupted_copy` |
+| Pipelines must survive reruns and schema changes | One field shape in all 8 files; max reject rate 1.3% | Whole-file outputs, write-once raw, field fingerprint and alerts | `test_rerun_is_byte_identical`, `test_alerts_for_schema_drift_and_reject_spike` |
+| Independent verification builds trust | Beam first read 44,044 of 169,352 rows | 7 reconciliation checks; Beam–pandas comparison | `test_reconciliation_catches_a_flipped_label`, `test_beam_pipeline_agrees_with_pandas_step3` |
 
 ### Leakage audit (Kapoor & Narayanan, 2023)
 
