@@ -242,11 +242,11 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 | New in M2 | Reason |
 |---|---|
-| New `quarantine/<version>/` folder | Rejected rows are kept with reason, file and line, instead of being dropped (Lecture 6) |
+| New `quarantine/<version>/` folder | Rejected rows are kept with reason, source file and line number, instead of being dropped |
 | New `audit/<version>/` folder with `validation_log.csv` and `reconciliation.json` | The proof that the data was checked is stored next to the data |
-| Processed data contract runs before upload | A bad split can no longer reach the bucket |
+| Processed data contract runs before upload | A split that fails validation is never uploaded to the bucket |
 | New `model_inputs/` in both buckets, with the train-fitted scaler | Milestone 3 reads ready-to-use inputs; the test inputs stay in the holdout bucket |
-| Step 11, the EDA and the reconciliation read from the buckets | Downstream work and checks use what is actually stored |
+| Step 11, the EDA and the reconciliation read from the buckets | Later stages and validations run against what was actually saved to the bucket| 
 
 ### M2.3 What the EDA found, and what it changed
 
