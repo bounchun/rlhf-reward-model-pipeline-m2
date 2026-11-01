@@ -271,8 +271,8 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 
 ### Six qualities of a trustworthy pipeline
-
-| Quality | How this pipeline has it |
+ 
+| Quality | How it is built into this pipeline |
 |---|---|
 | Repeatable | The data commit and library versions are pinned and the splits are hash-based. A full rerun reproduces the Parquet files and EDA figures byte for byte |
 | Idempotent | Each output file is overwritten in full on every run (like `WRITE_TRUNCATE`), never appended to; `raw/` is write-once and rejects any file whose bytes differ from the original |
