@@ -276,7 +276,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 |---|---|
 | Repeatable | The data commit and library versions are pinned and the splits are hash-based. A full rerun reproduces the Parquet files and EDA figures byte for byte |
 | Idempotent | Each output file is overwritten in full on every run (like `WRITE_TRUNCATE`), never appended to; `raw/` is write-once and rejects any file whose bytes differ from the original |
-| Observable | Every step prints its counters and saves them in the manifest; rejected rows are quarantined with their reasons; each file's quarantine rate and JSON-field fingerprint are tracked, with alerts for unusual rates or schema drift(fields renamed, added, removed or changing type) |
+| Observable | Every step prints its counters and saves them in the manifest; rejected rows are quarantined with their reasons; each file's quarantine rate and JSON-field fingerprint are tracked, with alerts for unusual rates or schema drift (fields renamed, added, removed or changing type) |
 | Testable | 43 unit tests run on synthetic data with deliberately planted defects, and GitHub Actions runs them on every push |
 | Fails loudly | The run stops on a checksum mismatch, a row-accounting gap (`rows read ≠ kept + quarantined`, i.e. rows lost without a trace), a HARD contract violation, a reconciliation disagreement or (optionally) , an alert |
 | Cost-aware | The 79 MB batch runs in a single Python process (about 2.5 min) rather than on Dataflow workers; Colab and CI are free; the buckets hold only a few hundred MB and use lifecycle rules to limit storage costs |
