@@ -250,7 +250,7 @@ In Milestone 1 I chose object storage and explained why, so I won’t go over th
 
 ### M2.3 What the EDA found, and what it changed
 
-All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`). Structure and quality checks look at all rows; distributions and relationships use **train only**; baselines are fitted on train and scored on dev; the holdout bucket is never read.
+All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`). Structure and quality checks cover every row; distribution and relationship analyses use the training split only; baselines are trained on train and evaluated on dev; and the holdout bucket is never accessed. 
 
 | # | Finding (real data, v1.1) | Decision in the pipeline |
 |---|---|---|
