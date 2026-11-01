@@ -270,16 +270,17 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 
 
-### Lecture 6: the six qualities of a trustworthy pipeline
+### Six qualities of a trustworthy pipeline
 
 | Quality | How this pipeline has it |
 |---|---|
-| Repeatable | Pinned data commit and libraries, hash-based splits; a full rerun gives byte-identical Parquet files and EDA figures |
-| Idempotent | Every output file is replaced as a whole (like `WRITE_TRUNCATE`), never appended; `raw/` is write-once and refuses different bytes |
-| Observable | Counters printed by every step and stored in the manifest; quarantine with reasons; per-file quarantine rate and JSON-field fingerprint (schema drift) with alerts |
-| Testable | 43 unit tests on synthetic data with planted defects, run by GitHub Actions on every push |
-| Fails loudly | Checksum mismatch, row-accounting gap, HARD contract violation, reconciliation disagreement or (optionally) an alert stops the run |
-| Cost-aware | 79 MB batch: one Python process (~2.5 min) instead of Dataflow workers; Colab and CI are free; buckets are a few hundred MB with lifecycle rules |
+| Repeatable | The data commit and library versions are pinned and the splits are hash-based. A full rerun reproduces the Parquet files and EDA figures byte for byte |
+| Idempotent | Each output file is overwritten in full on every run (like `WRITE_TRUNCATE`), never appended to; `raw/` is write-once and rejects any file whose bytes differ from the original |
+| Observable | Every step prints its counters and saves them in the manifest; rejected rows are quarantined with their reasons; each file's quarantine rate and JSON-field fingerprint are tracked, with alerts for unusual rates or schema drift(fields renamed, added, removed or changing type) |
+| Testable | 43 unit tests run on synthetic data with deliberately planted defects, and GitHub Actions runs them on every push |
+| Fails loudly | The run stops on a checksum mismatch, a row-accounting gap (`rows read ≠ kept + quarantined`, i.e. rows lost without a trace), a HARD contract violation, a reconciliation disagreement or (optionally) , an alert |
+| Cost-aware | The 79 MB batch runs in a single Python process (about 2.5 min) rather than on Dataflow workers; Colab and CI are free; the buckets hold only a few hundred MB and use lifecycle rules to limit storage costs |
+
 
 **Apache Beam (optional, `make beam`).** `src/beam_validate.py` runs step 3's data contract as a Beam pipeline: a file-reading `DoFn`, a `Validate` `DoFn` with a tagged `bad` output, Beam `Metrics` counters and a `CombinePerKey` for duplicates. It then compares every counter with the pandas step 3. On the real data all 10 counts agree (169,352 read, 168,029 kept, 1,323 quarantined, by reason). The comparison earned its place: in the first version, Beam's built-in `.gz` reading returned only 44,044 rows, and the mismatch exposed it at once. Running it on Dataflow is planned, not implemented: the code uses only portable Beam transforms and should run with `--runner DataflowRunner` and `apache-beam[gcp]`, but it has not been tested there, because at this size the workers would cost more to start than the job takes on one machine.
 
