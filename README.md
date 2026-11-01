@@ -461,8 +461,6 @@ Interim files (`data/interim/`) stay local and are never committed: before the s
 - Grósz, T. and Wahid, A. (2026). *Data Handling and Infrastructure for AI*, Lectures 4–6 and Labs 4–6, SETU.
 - Rando, J. and Tramèr, F. (2024). [*Universal Jailbreak Backdoors from Poisoned Human Feedback*](https://arxiv.org/abs/2311.14455). ICLR.
 
-The Milestone 1 reading list (bias, auditing, data poisoning, Google Cloud documentation) is in the [M1 README](https://github.com/bounchun/rlhf-reward-model-pipeline-m1#-further-resources).
-
 ---
 
 ## 💻 Author
