@@ -316,17 +316,18 @@ The dataset itself is documented in **[`docs/DATASHEET.md`](docs/DATASHEET.md)**
 
 ### M2.4 Changes since v1.0, and why
 
-The data split is **unchanged** (same salts), and so are the two buckets and their access rules; how the pipeline uses the storage was refined (see [M2.2](#m22-storage-implementation-and-evidence)). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
+The data split is unchanged (same salts), and so are the two buckets and their access rules; how the pipeline uses the storage was refined (see [M2.2](#m22-storage-implementation-and-evidence)). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
 
-| Change | Why |
+| What changed | Reason |
 |---|---|
 | Storage use: new `quarantine/`, `audit/` and `model_inputs/` folders; contract checked before upload; later steps read back from the buckets | Milestone 2 asks for storage that supports the whole pipeline, not only a place to put the final files |
-| Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Lecture 6: "don't crash, don't hide"; every rejected row keeps its reason, file and line number |
+| Quarantine instead of dropping rows (`quarantine/v1.1/quarantine.parquet`) | Every rejected row keeps its reason, file and line number |
 | Processed data contract + `validation_log.csv` | Lecture 5: record the rule, its rationale and the number of violations; stop before upload on a HARD violation |
 | PII masking in step 3 (new reason `identical_after_pii_mask`: 1 pair) | Governance: the data should not carry e-mails or phone numbers; ids are computed before masking so pair ids and splits do not move |
-| Refusal phrases v1.1 | EDA finding 8 (planned in the M1 README) |
+| Refusal phrases rebuilt | Planned in the M1 README and confirmed by the EDA | 
 | Step 11 model-ready inputs | Lecture 5: fit on train, transform every split; prepares M3 |
 | `reconcile.py`, `eda.py`, CI workflow | Evidence that the pipeline is correct and reproducible |
+
 
 ### M2.5 v1.1 run on the real data
 
