@@ -254,7 +254,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 
 | # | Finding (real data, v1.1) | Decision in the pipeline |
 |---|---|---|
-| 1 | In the raw files the preferred reply is **always** `chosen`: a model could reach 100% by learning the column | A/B swap by `hash(pair_id)`; label share now 49.8% in train |
+| 1 | In the raw files the preferred reply is always `chosen`: a model could reach 100% by learning the column | A/B swap by `hash(pair_id)`; label share now 49.8% in train |
 | 2 | 1,323 of 169,352 raw pairs break a rule; the rate differs by subset (13.0 per 1,000 in helpful-rejection-sampled vs 4.7 in harmless-base; χ² p = 6e-65, Cramér's V = 0.04), so the problems are not "missing completely at random" | Quarantine with reason and source line instead of a silent drop; `rows_read = kept + quarantined` asserted (fig. 1) |
 | 3 | 93% of pairs share their opening prompt with another pair, and 92% of official test pairs have their prompt in the official train split | Confirms the M1 group split; contract rule "no `group_id` in two splits" (fig. 2) |
 | 4 | Reply length is right-skewed (skew 2.0, −0.4 after `log1p`); the 1.5×IQR fence would flag 5% of replies | Flag (not delete) above the train 99th percentile (210 words); `log1p` lengths in step 11 (fig. 3) |
