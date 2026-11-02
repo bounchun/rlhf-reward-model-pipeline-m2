@@ -349,7 +349,7 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 **Limitations**
 
-| Limitation | Impact | What to address it |
+| Limitation | Impact | How to address it |
 |---|---|---| 
 | The Colab run used my personal Google account instead of `pipeline-sa` | The service-account roles exist but were never used, so the rule "the training account cannot read the holdout bucket" is configured but unverified | In Milestone 3, run the pipeline and a training read as the service accounts (via impersonation) and record the expected `403` on the holdout bucket |
 | Each pair has a single, noisy label (about 63% researcher agreement) | Caps the accuracy any model can reach; some apparent model errors will really be label errors | Use the 200-pair review sheet to estimate how noisy the labels are |
