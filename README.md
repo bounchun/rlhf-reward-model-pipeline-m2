@@ -351,7 +351,7 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 | Limitation | Impact | How to address it |
 |---|---|---| 
-| The Colab run used my personal Google account instead of `pipeline-sa` | The service-account roles exist but were never used, so the rule "the training account cannot read the holdout bucket" is configured but unverified | In Milestone 3, run the pipeline and a training read as the service accounts (via impersonation) and record the expected `403` on the holdout bucket |
+| The Colab run used my personal Google account instead of `pipeline-sa` | The service-account roles exist but were never used, so the rule "the training account cannot read the holdout bucket" is configured but unverified | In M3, run the pipeline and a training read as the service accounts (via impersonation) and record the expected `403` on the holdout bucket |
 | Each pair has a single, noisy label (about 63% researcher agreement) | Caps the accuracy any model can reach; some apparent model errors will really be label errors | Use the 200-pair review sheet to estimate how noisy the labels are |
 | hh-rlhf has no timestamps | F1 and F2 are held-out prompt groups rather than data collected later, so they cannot measure drift over time | Use a preference dataset that records when each pair was collected |
 | The test set reflects how this data was collected (crowdworker prompts) | Results describe crowdworker conversations on these four subsets, not real users | Evaluate on a preference set collected in a different way |
