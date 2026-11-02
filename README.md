@@ -362,12 +362,12 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 **Reflection**
 
-- **Implementing storage early paid off:** because the buckets worked after Milestone 1, Milestone 2 could focus on how the pipeline uses them (checking before upload, keeping rejected rows, reading back to verify). Most of the trust in the data now comes from these checks rather than from the bucket itself.
-- **The EDA changed the pipeline, not just the report:** the always-`chosen` label, the typographic apostrophe in the refusal rule and the subset-dependent length effect were each found in the data and each led to a code change and a test.
-- **Independent checks caught a real bug:** the Beam comparison exposed a gzip reading problem (44,044 of 169,352 rows) that the pandas pipeline alone would not have shown. Next time I would build the reconciliation first, not last.
-- **Precise claims:** reviewing the draft showed wording that said more than the evidence ("no leakage", "Dataflow-ready"); it now says "no measurable inflation for these models" and "planned, not implemented".
-- **For Milestone 3:** train on `model_inputs/`, beat the per-subset length baseline on every subset, report group-bootstrap intervals, and test the service-account separation.
-
+- **Implementing storage early paid off:** because the buckets worked after M1, M2 could focus on how the pipeline uses them (checking before upload, keeping rejected rows, reading files back to verify them). Most of the trust in the data now comes from these checks rather than from the bucket itself.
+- **The EDA changed the pipeline, not just the report:** three issues found in the data, the label that always pointed to `chosen`, the curly apostrophe that broke the refusal rule, and the length effect that varied by subset, each led to a code change and a new test.
+- **Independent checks caught a real bug:** comparing the pandas output with Beam revealed a multi-member gzip reading bug that had silently dropped 44,044 of 169,352 rows, something the pandas pipeline alone would never have shown. Next time I would build the reconciliation first, not last.
+- **Keeping claims precise:** reviewing the draft showed some wording that went further than the evidence ("no leakage", "Dataflow-ready"). These now read "no measurable inflation for these models" and "planned, not implemented".
+- **M3 goals:** train the model on `model_inputs/`, beat the per-subset length baseline on every subset, report group-bootstrap confidence intervals, and verify that the service accounts are properly separated.
+  
 ---
 
 ## ▶️ How to run it
