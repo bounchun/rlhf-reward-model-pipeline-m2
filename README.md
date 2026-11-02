@@ -429,7 +429,7 @@ One Python script per step; each script says at the top what it reads, writes an
 
 
 ```
-config.json                  every parameter: HF revision, salts, split buckets, thresholds, alerts, EDA settings
+config.json                  All pipeline settings in one place: Hugging Face revision, hashing salts, split buckets, thresholds, alert limits, EDA settings
 requirements.txt             pinned versions (Python 3.13); requirements-beam.txt: optional Apache Beam
 Makefile                     make all | scrape | store | preprocess | queries | reconcile | eda | beam | test | demo
 src/                         the steps above + common.py (storage, hashing, manifests) and text_utils.py
