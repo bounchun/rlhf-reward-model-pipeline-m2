@@ -407,25 +407,26 @@ DHAI_BUCKET= make all                          # or: full run with local folders
 
 ## 🛠️ Repository layout and pipeline steps
 
-One Python script per step; each script says at the top what it reads, writes and checks, and records its counts, settings and checksums in `manifests/<version>.json`. `make all` runs steps 1–11, the sample queries, the reconciliation and the EDA in order.
+One Python script per step; each script says at the top what it reads, writes and checks, and each run records its row counts, settings and checksums in `manifests/<version>.json`. `make all` runs steps 1–11, then the sample queries, the reconciliation and the EDA in order.
 
 | Step | Script (`src/`) | Input → output |
 |---|---|---|
-| 1 Acquire | `step1_scrape_raw.py` | Hugging Face (pinned commit; retries with backoff) → `data/downloads/`, `manifests/raw-⟨rev⟩.json` |
-| 2 Store raw | `step2_store_raw.py` | → `gs://bc-rlhf-reward-2026/raw/` (write-once, read-back verified) |
-| 3 Validate + clean | `step3_clean.py`, `contract.py` | raw → `cleaned.parquet` + quarantine with reasons; row accounting; PII masking; schema and reject-rate alerts |
-| 4 Quality checks | `step4_quality_checks.py` | hard checks, poisoning screen, residual-PII check → `audit/<version>/` |
-| 5 Features | `step5_features.py` | group keys, A/B swap → `label`, lengths, refusal flags |
-| 6 Filter | `step6_filter.py` | future reserve F1/F2 + 30,002-pair working set (whole prompt groups) |
-| 7 Split | `step7_split.py` | 80/10/10 train/dev/test by hashed group; outlier threshold fitted on train |
-| 8 Shard | `step8_shard.py` | optional, off by default |
-| 9 Store processed | `step9_store_processed.py`, `contract.py` | 17-rule data contract → `validation_log.csv`; Parquet to `processed/` and the holdout bucket |
-| 10 Review sheet | `step10_review_sample.py`, `score_review.py` | blind 200-pair label review |
-| 11 Model inputs | `step11_model_inputs.py` | `model_inputs/` for every split; scaler fitted on train |
-| Check | `reconcile.py` | independent recount from the raw files: 7 checks |
-| Check (optional) | `beam_validate.py` | step 3's contract on Apache Beam, compared with pandas (`make beam`) |
-| EDA | `eda.py` | `docs/eda/`: 9 figures, `eda_summary.json`, `findings.csv` |
-| Queries | `sample_queries.py` | example pandas queries on the stored train/dev data |
+| 1. Acquire | `step1_scrape_raw.py` | Downloaded from Hugging Face at a pinned commit; a failed download is retried, with a longer wait before each attempt (backoff) → saved to `data/downloads/`, logged in `manifests/raw-<rev>.json` |
+| 2. Store raw | `step2_store_raw.py` | Uploads the raw files to `gs://bc-rlhf-reward-2026/raw/`; each file is written once and never overwritten, then read back and checked against its checksum |
+| 3. Validate + clean | `step3_clean.py`, `contract.py` | Reads the raw files and writes valid rows to `cleaned.parquet`; rows that fail a check go to a quarantine file with the reason they failed. Every input row is accounted for (kept + quarantined = total), personal details are masked, and an alert is raised if the schema changes or the reject rate gets too high |
+| 4. Quality checks | `step4_quality_checks.py` | Runs hard checks that stop the pipeline if they fail, screens the data for signs of poisoning (deliberately misleading or manipulated pairs), and searches for any personal details the masking missed; results saved to `audit/<version>/` |
+| 5. Features | `step5_features.py` | Builds the group key for each pair (a hash of the normalised first Human message, so related pairs stay in the same split); places the chosen reply in position A or B by a seeded swap and records which in `label`, so the answer is not always the same position; and adds response lengths and refusal flags |
+| 6. Filter | `step6_filter.py` | Sets aside 20% of the prompt groups as a future reserve (F1, F2), then takes a 30,002-pair working set in the whole prompt groups, keeping the original mix of subsets |
+| 7. Split | `step7_split.py` | Splits the working set 80/10/10 into train/dev/test using a hash of each prompt group, so related pairs always land in the same split; the outlier threshold is learned from the training set only, so dev and test stay unseen |
+| 8. Shard | `step8_shard.py` | Optional, off by default: splits the output into smaller files (shards) so larger datasets can be processed in parallel; not needed at the current 79 MB |
+| 9. Store processed | `step9_store_processed.py`, `contract.py` | Checks the processed data against a 17-rule data contract and logs each result in `validation_log.csv`; only after it passes are the Parquet files uploaded to `processed/` and the held-out data to the separate holdout bucket |
+| 10. Review sheet | `step10_review_sample.py`, `score_review.py` | Draws 200 pairs for a blind review, where the reviewer picks the better reply without seeing the original label; `score_review.py` then measures how often the reviewer agrees with the dataset label, to estimate label noise |
+| 11. Model inputs | `step11_model_inputs.py` | Writes the final, ready-to-train files to `model_inputs/` for every split; the feature scaler is learned from the training set only and then applied unchanged to dev, test and the reserve |
+| Check | `reconcile.py` | Recounts everything independently, starting again from the raw files, and compares the result with the pipeline's output in 7 checks; any mismatch shows a bug in one of the two |
+| Check (optional) | `beam_validate.py` | Runs step 3's data contract a second time on Apache Beam and compares the results with the pandas pipeline; run it with `make beam` |
+| EDA | `eda.py` | Explores the cleaned data and saves the results to `docs/eda/`: 9 figures, summary statistics in `eda_summary.json`, and the list of findings in `findings.csv` |
+| Queries | `sample_queries.py` | Runs example pandas queries on the train and dev data read back from storage, showing that the stored files can be loaded and queried as expected |
+
 
 ```
 config.json                  every parameter: HF revision, salts, split buckets, thresholds, alerts, EDA settings
