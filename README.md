@@ -349,17 +349,16 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 **Limitations**
 
-| Limitation | Effect | What would address it |
-|---|---|---|
-| The Colab run signs in with my own Google account, not `pipeline-sa` | The service-account roles are configured but were not exercised, so "the training account cannot read the holdout bucket" is set up, not tested | Run the pipeline and a training read as the service accounts (impersonation) and record the expected 403 on the holdout bucket (Milestone 3) |
-
-| One noisy label per pair (about 63% researcher agreement) | Caps the accuracy any model can reach; some "errors" will be label noise | Estimate the noise from the 200-pair review sheet |
-| No timestamps in hh-rlhf | F1/F2 are held-out prompt groups, not later data, so they cannot measure drift over time | A preference dataset with collection dates |
-| The test set represents this collection process (crowdworker prompts) | Results describe crowdworkers on these four subsets, not real users | Evaluate on a differently collected preference set |
-| Per-subset test accuracy is only known to about ±3–5 points | Small differences between subsets cannot be claimed | Report group-bootstrap intervals; claim only differences larger than them |
-| PII masking is pattern-based (e-mail, phone) | Names, addresses and other personal details in free text are not masked | A named-entity based PII detector |
-| Single machine; Beam not run on Dataflow | Fine at 79 MB, untested at larger scale | Run `beam_validate.py` with `DataflowRunner` if the data grows |
-| No `models/` folder yet | Model artefacts are not stored or versioned yet | Added in Milestone 3, in the main bucket and versioned like the data |
+| Limitation | Impact | What to address it |
+|---|---|---| 
+| The Colab run used my personal Google account instead of `pipeline-sa` | The service-account roles exist but were never used, so the rule "the training account cannot read the holdout bucket" is configured but unverified | In Milestone 3, run the pipeline and a training read as the service accounts (via impersonation) and record the expected `403` on the holdout bucket |
+| Each pair has a single, noisy label (about 63% researcher agreement) | Caps the accuracy any model can reach; some apparent model errors will really be label errors | Use the 200-pair review sheet to estimate how noisy the labels are |
+| hh-rlhf has no timestamps | F1 and F2 are held-out prompt groups rather than data collected later, so they cannot measure drift over time | Use a preference dataset that records when each pair was collected |
+| The test set reflects how this data was collected (crowdworker prompts) | Results describe crowdworker conversations on these four subsets, not real users | Evaluate on a preference set collected in a different way |
+| Test accuracy for each subset is only precise to about ±3–5 points | Small differences between subsets are not reliable enough to report | Report group-bootstrap confidence intervals and only claim differences larger than them |
+| PII masking only catches fixed patterns (e-mail, phone numbers) | Names, addresses, other personal details written in free text stay unmasked | Add a PII detector based on named-entity recognition |
+| Processing runs on a single machine; the Beam job was never run on Dataflow | Works for 79 MB of data, but larger volumes are untested |  Run `beam_validate.py` with `DataflowRunner` if the data grows |
+| There is no `models/` folder yet | Trained models are not yet stored or versioned | In M3, add `models/` to the main bucket and version it the same way as the data |
 
 **Reflection**
 
