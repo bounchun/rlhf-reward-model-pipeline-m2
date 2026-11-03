@@ -463,7 +463,7 @@ Interim files (`data/interim/`) stay local and are never committed: until the sp
 - Schutt, R. and O'Neil, C. (2013). *Doing Data Science*, ch. 2. O'Reilly.
 - scikit-learn: [Common pitfalls and recommended practices](https://scikit-learn.org/stable/common_pitfalls.html).
 - [Apache Beam programming guide](https://beam.apache.org/documentation/programming-guide/).
-- Grósz, T. and Wahid, A. (2026). *Data Handling and Infrastructure for AI*, Lectures 4–6 and Labs 4–6, SETU.
+- Wahid, A. (2026). *Data Handling and Infrastructure for AI*, Lectures 4–6 and Labs 4–6, SETU.
 - Rando, J. and Tramèr, F. (2024). [*Universal Jailbreak Backdoors from Poisoned Human Feedback*](https://arxiv.org/abs/2311.14455). ICLR.
 
 ---
