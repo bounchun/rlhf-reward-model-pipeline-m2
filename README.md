@@ -2,12 +2,6 @@
 
 This is Milestone 2 of my Data Handling and Infrastructure for AI project. It picks up where Milestone 1 left off, in [bounchun/rlhf-reward-model-pipeline-m1](https://github.com/bounchun/rlhf-reward-model-pipeline-m1) (release `data-v1.0`), and the full commit history came across with it, so you can trace how the project got from M1 to M2. This README is self-contained: you do not need the M1 report to follow it.
 
-How it is organised:
-1. [Project summary and Milestone 1 decisions](#m20-project-summary-and-milestone-1-decisions): what the project is and what was already decided.
-2. [Revised decisions](#m24-changes-since-v10-and-why): what changed after Milestone 1, and why.
-3. Milestone 2 implementation and evidence: [pipeline](#m21-pipeline-architecture), [storage](#m22-storage-implementation-and-evidence), [EDA](#m23-what-the-eda-found-and-what-it-changed).
-4. [Results and validation](#m25-v11-run-on-the-real-data), then [limitations and reflection](#m26-limitations-and-reflection).
-
 | | |
 |---|---|
 | **Task** | Given a conversation and two replies, predict which one a crowdworker preferred (reward modelling for RLHF) |
