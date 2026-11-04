@@ -508,6 +508,31 @@ Interim files (`data/interim/`) stay local and are never committed: until the sp
 
 ---
 
+## 🤖 Use of AI
+
+**Tool used**
+
+- **Claude** (Anthropic), in the claude.ai app. Model: Claude Opus 5.5
+
+**How I worked with it**
+
+| Part of the work | My role | How AI helped |
+| --- | --- | --- |
+| Debugging | Ran the pipeline, fixed the problems in my Colab run and reran it until every check passed | Helped find the causes (for example Beam's `.gz` reader returning only 44,044 rows) and suggested fixes |
+| Google Cloud | Set up and ran the v1.1 pipeline on my own GCP project and buckets on 26 October 2026, and took the screenshots | Step-by-step guidance |
+| Report, README and datasheet | Checked every number against my Colab run and `manifests/v1.1.json` | Suggested shorter wording, fixed Markdown tables and wrote figure captions |
+| Language | — | Grammar and spelling |
+
+All numbers in this README come from my own pipeline run on 26 October 2026, recorded in `manifests/v1.1.json` and `docs/eda/eda_summary.json`, not from the AI.
+
+**Example prompts**
+
+1. *"Fix the formatting problem in markdown."* (followed by a broken table)
+2. *"Write the figures block for M2.3, with all nine figures and a one-line caption for each from `findings.csv`."*
+3. *"Give me my real project ID."*
+
+---
+
 ## 💻 Author
 
 **Boun Chun** · [@bounchun](https://github.com/bounchun)
