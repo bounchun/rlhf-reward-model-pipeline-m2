@@ -1,6 +1,6 @@
 # Datasheet: hh-rlhf preference pairs, processed version v1.1
 
-This datasheet follows the questions in Gebru et al. (2021), *Datasheets for Datasets*. It covers the **processed dataset produced by this repository** (v1.1). The upstream dataset, `Anthropic/hh-rlhf`, is documented by its authors in Bai et al. (2022). Every number below is in `manifests/v1.1.json` or `docs/eda/eda_summary.json`.
+This datasheet follows the questions in Gebru et al. (2021), *Datasheets for Datasets*. It covers the processed dataset produced by this repository (v1.1). The upstream dataset, `Anthropic/hh-rlhf`, is documented by its authors in Bai et al. (2022). Every number below is in `manifests/v1.1.json` or `docs/eda/eda_summary.json`.
 
 ## 1. Motivation
 
@@ -60,7 +60,7 @@ This datasheet follows the questions in Gebru et al. (2021), *Datasheets for Dat
 
 ## 6. Distribution
 
-- The processed files are **not redistributed**. They live in private GCS buckets. Anyone can rebuild them with `make all` from the public, MIT-licensed upstream release.
+- The processed files are not redistributed. They live in private GCS buckets. Anyone can rebuild them with `make all` from the public, MIT-licensed upstream release.
 - Code: public GitHub repository. Licence of the upstream data: MIT.
 
 ## 7. Maintenance
