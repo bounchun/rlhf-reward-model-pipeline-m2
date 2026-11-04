@@ -407,8 +407,36 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 - **Independent checks caught a real bug:** comparing the pandas output with Beam revealed a multi-member gzip reading bug that made Beam read only 44,044 of the 169,352 rows, something the pandas pipeline alone would never have shown. Next time I would build the reconciliation first, not last.
 - **Keeping claims precise:** reviewing the draft showed some wording that went further than the evidence ("no leakage", "Dataflow-ready"). These now read "no measurable inflation for these models" and "planned, not implemented".
 - **M3 goals:** train the model on `model_inputs/`, beat the per-subset length baseline on every subset, report group-bootstrap confidence intervals, and verify that the service accounts are properly separated.
-  
----
+
+### M2.7 Plan for Milestone 3
+
+**First model.** A small pretrained transformer encoder (512 tokens) used as a reward model: it gives each reply its own score from the context plus that reply (`text_a`, `text_b` from step 11), and is trained with a pairwise loss so that the preferred reply scores higher. Scoring each reply on its own, rather than classifying A vs B, means the same model can later rank any number of replies. It must beat these baselines from M2 (dev accuracy):
+
+| Baseline | Dev accuracy |
+|---|---|
+| Constant (train majority class) | 48.3% |
+| Length only, pooled | 51.4% |
+| Bag of words (reply A − reply B) | 54.8% |
+| Length × subset, one model per subset | 58.2% (the one to beat) |
+
+**How it will be evaluated**
+
+- **Data use:** train on `train`, choose settings on `dev` with `GroupKFold` on prompt groups, and score `test` only once, at the end. F1 is used as an extra "new prompts" check.
+- **Per subset, never pooled alone:** length and refusal push in opposite directions in helpful-base and harmless-base (findings 6 and 9), so a pooled score can hide a failure on one subset.
+- **Slices fixed in `config.json` before testing:** length gap between the replies, pairs where only one reply is a refusal, near-identical replies, and truncated contexts.
+- **Group-bootstrap 95% intervals** (resampling prompt groups). The model counts as beating a baseline on a subset only if its interval lies above the baseline.
+- **Label-noise ceiling:** the 200-pair review sheet from step 10 estimates how often the labels themselves are wrong, so accuracy is judged against that ceiling, not against 100%.
+
+**MLOps**
+
+| Need | Plan |
+|---|---|
+| Experiment tracking | Every run logs the data version (`data-v1.1`), the Git commit, the full config, the random seed and the metrics per subset and slice, with MLflow |
+| Versioned models | A new `models/<model-version>/` folder in the main bucket holds the weights, a manifest (SHA-256, data version, commit, metrics) and a short model card, versioned like the data |
+| Access | Training runs as `train-sa`, which can read `processed/` but not the holdout bucket; the final test is a separate step. This also tests the service-account separation that M2 configured but did not verify (M2.6) |
+| Retraining trigger | Retrain when a new data version is released (MINOR or MAJOR bump), when the monitoring alerts in step 3 fire, or when accuracy on new held-out prompts (F2) falls below the per-subset length baseline |
+| Reproducibility | Pinned libraries and seeds, tests for the training code in CI, and a Colab notebook that runs training end to end |
+
 
 ## ▶️ How to run it
 
