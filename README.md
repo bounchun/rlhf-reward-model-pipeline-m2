@@ -260,6 +260,54 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | 12 | Two scikit-learn Pipelines (a ColumnTransformer model on length × subset, and a bag-of-words model whose vocabulary is learned inside each fold) give the same accuracy with random-row folds as with `GroupKFold` on prompt groups (gap ≤ 0.2 points), though the group folds vary between folds | M3 uses GroupKFold for all cross-validation, and bag of words (54.8% on dev) becomes the first text baseline. Random-row folds show no measurable inflation for these reply-only models, which does not prove there is no leakage: a model that also reads the prompt could still memorise it (fig. 9) |
 | 13 | 304 pairs contain an e-mail address and 724 contain something that looks like a phone number | Masked as `[EMAIL]` / `[PHONE]`; step 4 checks that none is left |
 
+#### Figures
+
+All 9 figures are produced by `make eda` and saved in [`docs/eda/`](docs/eda/). They use train only, except fig. 5 and the dev replication in fig. 8. The numbers in each caption match the table above.
+
+<p align="center">
+  <img src="docs/eda/fig1_quarantine_by_subset.png" alt="Quarantine rate by subset" width="800"><br>
+  <em><b>Figure 1.</b> Quarantine rate by subset: 13.0 per 1,000 pairs in helpful-rejection-sampled vs 4.7 in harmless-base (χ² p = 6e-65, Cramér's V = 0.04), so the failures are not MCAR (finding 2).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig2_groups_and_similarity.png" alt="Prompt groups and reply similarity" width="800"><br>
+  <em><b>Figure 2.</b> 93% of pairs share their opening prompt with another pair, and 0.2% of train pairs have near-identical replies (similarity ≥ 0.9) (finding 3).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig3_length_distributions.png" alt="Reply length distributions" width="800"><br>
+  <em><b>Figure 3.</b> Reply length is right-skewed (skew 2.0, falling to −0.4 after <code>log1p</code>). Replies above the train 99th percentile (210 words) are flagged, not deleted (finding 4).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig4_length_bias.png" alt="Length bias by subset" width="800"><br>
+  <em><b>Figure 4.</b> The longer reply is preferred in 58% of helpful-base pairs but only 42% of harmless-base pairs, so the pooled 52% hides two opposite effects (finding 6).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig5_length_baselines_dev.png" alt="Length baselines on dev" width="800"><br>
+  <em><b>Figure 5.</b> On dev, a length-only model scores 51.4% pooled but 58.2% with one model per subset (the constant baseline scores 48.3%) (finding 7).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig6_refusals.png" alt="Refusal preference by subset" width="800"><br>
+  <em><b>Figure 6.</b> When only one reply is a refusal, it is preferred in 75% of harmless-base pairs but only 27% of helpful-base pairs (finding 9).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig7_feature_correlations.png" alt="Feature correlations" width="800"><br>
+  <em><b>Figure 7.</b> Spearman correlations between inputs: reply A vs reply B length ρ = 0.50, number of turns vs context words ρ = 0.82 (finding 10).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig8_inference.png" alt="Group-bootstrap inference" width="800"><br>
+  <em><b>Figure 8.</b> With a group bootstrap, the length-preference gap between helpful-base and harmless-base is 16.1 points (95% CI 14.3–17.8), and the effect replicates on dev in all 4 subsets (finding 11).</em>
+</p>
+
+<p align="center">
+  <img src="docs/eda/fig9_cross_validation.png" alt="Random-row vs group cross-validation" width="800"><br>
+  <em><b>Figure 9.</b> Random-row and prompt-group 5-fold CV agree within 0.2 points for both models, but the group folds vary more from fold to fold (finding 12).</em>
+</p>
 
 
 ### Six qualities of a trustworthy pipeline
