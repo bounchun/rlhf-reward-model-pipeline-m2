@@ -540,7 +540,7 @@ Interim files (`data/interim/`) stay local and are never committed: until the sp
 
 **Tool used**
 
-- **Claude** (Anthropic). Model: Claude Opus 5.5
+- Claude (Anthropic) and ChatGPT (OpenAI) 
 
 **How I worked with it**
 
