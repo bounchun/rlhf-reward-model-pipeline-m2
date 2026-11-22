@@ -17,7 +17,7 @@ This project prepares the data for an RLHF reward model : given a conversation a
 | Storage | Google Cloud Storage rather than a database, because the data is written once in batches and training reads whole files, with no queries in between. There are two buckets: `gs://bc-rlhf-reward-2026` (Standard) and `gs://bc-rlhf-reward-2026-holdout` (Coldline, for test, F1 and F2). [M2.2](#m22-storage-implementation-and-evidence) shows how this was set up and what changed in M2 |
 | Formats | Raw files stay as the original JSONL.gz. Processed data is Parquet, manifests are JSON, and audit files are CSV or JSON |
 | Versioning | Each version gets its own `vMAJOR.MINOR` folder, a manifest and a Git tag (`data-v1.0`, now `data-v1.1`). The MINOR number goes up when the cleaning rules change |
-| Bias and poisoning | The audit plan and the poisoning defences are in sections 11–12 of the [M1 README](https://github.com/bounchun/rlhf-reward-model-pipeline-m1). M2 adds the datasheet and the leakage audit |
+| Governance, bias and poisoning | Summarised for v1.1 in [Data governance and ethics](#data-governance-and-ethics), with the datasheet and the leakage audit |
 
 
 
@@ -45,7 +45,7 @@ make all  (Colab or locally · runs the steps in order, top to bottom,
 │   ├── Anthropic/hh-rlhf          Hugging Face, MIT licence, commit 09be8c5 pinned
 │   │
 │   └── setup_gcs.sh               creates 2 buckets (versioning + lifecycle),
-│                                  2 service accounts: pipeline-sa writes, train-sa reads main only
+│                                  2 service accounts: pipeline-sa writes, train-sa reads processed/ only
 │
 ├── 2 INGEST
 │   ├── step1_scrape_raw           downloads the 8 raw files from Hugging Face over HTTPS
@@ -171,8 +171,10 @@ Why object storage was chosen is summarised in [M2.0](#m20-project-summary-and-m
 | Access control | Uniform bucket-level access, public access prevention on | Same | One set of IAM rules covers the whole bucket, so no single file can be shared by mistake; the harmful text in the data must never be public |
 | Object versioning | On | On | A bad rerun or an accidental delete doesn’t lose data: the previous version is kept|
 | Lifecycle (`scripts/gcs_lifecycle.json`) | Delete a non-current version when 4 newer ones exist or after 90 days | Same | Keeps recent versions for recovery but deletes older ones, so costs stay small |
-| IAM | `pipeline-sa`: objectAdmin · `train-sa`: objectViewer | `pipeline-sa`: objectAdmin · `train-sa`: no role | The training account is given read access to train and dev only, and no access to the test set |
+| IAM | `pipeline-sa`: objectAdmin on the bucket · `train-sa`: objectViewer on the `processed/` managed folder only, no role on the bucket | `pipeline-sa`: objectAdmin · `train-sa`: no role | The training account can read train and dev, and nothing else. A bucket-wide read role would also open `raw/`, which holds every pair, test, F1 and F2 included |
 
+
+**Access rules, and how they are verified.** In v1.0, `train-sa` had read access to the whole main bucket. That kept it out of the holdout bucket, but not out of `raw/`, which holds all 169,352 pairs, including the ones that later become test, F1 and F2, so the test set could have been rebuilt from there. For v1.1, `processed/` is a [managed folder](https://cloud.google.com/storage/docs/managed-folders) with its own IAM policy, and `train-sa` is granted objectViewer on that folder only. `scripts/check_iam.sh` then acts as `train-sa` (service-account impersonation) and checks 8 cases: it can read and list `processed/`, and it gets a `403` on `raw/`, `quarantine/`, the bucket root, the holdout bucket, and on any write. The result is committed in [`docs/iam_check_v1.1.txt`](docs/iam_check_v1.1.txt).
 
 **How the data is organised.** Each dataset version has its own folders (`processed/v1.1/`, `quarantine/v1.1/`, `audit/v1.1/` and `v1.1/` in the holdout bucket). That way v1.0 and v1.1 can sit side by side, and a new version never overwrites an old one. Raw files are stored under the Hugging Face commit they came from (`raw/hh-rlhf/<commit>/<subset>/<split>.jsonl.gz`), so files from another version of the dataset can't get mixed in. The full layout is in the bucket tree in [M2.1](#m21-pipeline-architecture). The interim files (`data/interim/`) are never uploaded, because until the split is made they still contain the test rows.
 
@@ -230,10 +232,11 @@ Why object storage was chosen is summarised in [M2.0](#m20-project-summary-and-m
 
 
 
-**What changed after Milestone 1.** The bucket design (two buckets, storage classes, versioning, IAM roles) is unchanged, since the v1.0 run showed it worked well. What changed is how the pipeline uses the buckets: 
+**What changed after Milestone 1.** The bucket design (two buckets, storage classes, versioning) is unchanged, since the v1.0 run showed it worked well. What changed is `train-sa`'s access, and how the pipeline uses the buckets: 
 
 | New in M2 | Reason |
 |---|---|
+| `train-sa` limited to the `processed/` managed folder, checked by `scripts/check_iam.sh` | Bucket-wide read access let it read `raw/`, which contains the test rows |
 | New `quarantine/<version>/` folder | Rejected rows are kept with reason, source file and line number, instead of being dropped |
 | New `audit/<version>/` folder with `validation_log.csv` and `reconciliation.json` | The proof that the data was checked is stored next to the data |
 | Processed data contract runs before upload | A split that fails validation is never uploaded to the bucket |
@@ -252,7 +255,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | 4 | Reply length is right-skewed (skew 2.0, falling to −0.4 after `log1p`), and the usual 1.5×IQR rule would mark 5% of replies as outliers | Replies longer than the train 99th percentile (210 words) are flagged, not deleted; step 11 uses `log1p` lengths (fig. 3) |
 | 5 | 9.7% of train contexts exceed 256 words | Step 11 cuts long contexts from the left, keeping the most recent turns, and marks each cut row with `context_truncated` |
 | 6 | The preferred reply is the longer one in 58% of helpful-base pairs but in only 42% of harmless-base pairs; pooled together (52%), the two effects cancel out (Cramér's V = 0.14) | Length is a shortcut that depends on the subset: M3 reports accuracy per subset and per length-gap slice (fig. 4) |
-| 7 | A length-only model gets 51.4% on dev when pooled, but 58.2% when a separate length model is fitted for each subset | These are the baselines the M3 reward model must beat on every subset (fig. 5) |
+| 7 | A length-only model gets 51.4% on dev when pooled, but 58.2% when a separate length model is fitted for each subset | M3 must beat the best length baseline *on each subset*; the per-subset bars are in [M2.7](#m27-plan-for-milestone-3) (fig. 5) |
 | 8 | 47% of replies use the curly apostrophe ’, so the v1.0 refusal regex (straight `'` only) flagged only 0.09% of pairs | Refusal phrases rebuilt from the data to match both apostrophes: 2.2% now flagged |
 | 9 | When only one of the two replies is a refusal, the refusal is preferred in 75% of harmless-base pairs but in only 27% of helpful-base pairs | A second shortcut that depends on the subset, so M3 reports a refusal slice for each subset (fig. 6) |
 | 10 | Some inputs are strongly correlated: the lengths of reply A and reply B have ρ = 0.50 pooled and 0.27–0.54 within subsets (partly because the subsets differ in typical reply length), and the number of turns and the context length in words have ρ = 0.82 | Linear baselines use the log length ratio instead of the two lengths; since part of the A–B correlation comes from the subsets, this is another reason to evaluate per subset (fig. 7) |
@@ -260,53 +263,64 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | 12 | Two scikit-learn Pipelines (a ColumnTransformer model on length × subset, and a bag-of-words model whose vocabulary is learned inside each fold) give the same accuracy with random-row folds as with `GroupKFold` on prompt groups (gap ≤ 0.2 points), though the group folds vary between folds | M3 uses GroupKFold for all cross-validation, and bag of words (54.8% on dev) becomes the first text baseline. Random-row folds show no measurable inflation for these reply-only models, which does not prove there is no leakage: a model that also reads the prompt could still memorise it (fig. 9) |
 | 13 | 304 pairs contain an e-mail address and 724 contain something that looks like a phone number | Masked as `[EMAIL]` / `[PHONE]`; step 4 checks that none is left |
 
+#### What the findings mean for a reward model
+
+The table above says *what* the data shows. This part explains *why*, using how hh-rlhf was collected (Bai et al., 2022), and what that means for the model in M3.
+
+- **The subsets measure two different goals (findings 6, 7, 9).** In the helpful subsets, crowdworkers picked the more *helpful* reply. In harmless-base, they tried to get the model to say something harmful (red-teaming), and the preferred reply in the data is the *less harmful* one. On a harmful request, the safe answer is usually short, often a refusal, so harmless-base prefers the shorter reply (the longer one wins only 42% of the time) and prefers the refusal (75%). On an ordinary request, a refusal or a thin answer is unhelpful, so helpful-base prefers the longer reply (58%) and rarely prefers the refusal (27%). Bai et al. describe the same tension between helpfulness and harmlessness. Length and refusal are therefore not noise to remove: they stand in for the two goals, and any global rule ("longer is better") will be wrong on one subset by design. This is why a single pooled accuracy is never reported on its own.
+- **Length is the shortcut a reward model is most likely to learn, and the costliest (findings 6, 7).** In RLHF, the policy is trained to maximise the reward model's score, so whatever the reward model rewards gets amplified. A reward model that has learned "longer is better" teaches the policy to pad its answers, a known failure of RLHF (Singhal et al., 2023). That is why M3 reports accuracy per length-gap slice: a model that only does well when the two replies differ a lot in length has learned length, not quality.
+- **helpful-online is the hardest subset for length (finding 7).** Its replies are much longer (mean 111 words, against 39 in helpful-base), and the longer one wins only 45% of the time, so "pick the longer reply" scores 44%, below chance. These pairs come from the later "online" round, where crowdworkers compared replies from models already improved with RLHF. When both replies are long and fluent, length no longer separates them and the preference has to come from the content. A reward model meets this situation more and more as the policy it is training improves, so this subset gets its own bar in M2.7.
+- **helpful-rejection-sampled's high quarantine rate comes from how it was collected, not from corrupt data (finding 2).** Almost all of its quarantined rows are pairs with two identical replies (12.0 per 1,000, against 0–2.5 in the other subsets). In this round, both replies were sampled from the same model and then filtered (rejection sampling), which makes identical samples more likely. An identical pair carries no preference signal, so quarantining it loses nothing. It does mean the failures are not MCAR, so the quarantine counts are reported per subset.
+- **Prompt sharing comes from the turn-by-turn protocol (finding 3).** Crowdworkers chose between two replies at every turn of a conversation, so one conversation produces several pairs with the same opening message (median group: 3 pairs). With the official split, a model could recognise a test conversation it had already seen in training and look better than it is. The group split prevents this.
+- **Label noise limits what to expect.** Researchers agreed with the crowdworkers' choice only about 63% of the time (Bai et al., 2022). Gains over the 55–61% per-subset bars (M2.7) will therefore be a few points rather than tens of points, which is why the ±3–5-point intervals matter when comparing the model with the baselines.
+
 #### Figures
 
-All 9 figures are produced by `make eda` and saved in [`docs/eda/`](docs/eda/). They use train only, except fig. 5 and the dev replication in fig. 8. The numbers in each caption match the table above.
+All 9 figures are produced by `make eda` and saved in [`docs/eda/`](docs/eda/). They use train only, except fig. 5 and the dev replication in fig. 8. The numbers are in the findings table above.
 
 <p align="center">
   <img src="docs/eda/fig1_quarantine_by_subset.png" alt="Quarantine rate by subset" width="800"><br>
-  <em><b>Figure 1.</b> Quarantine rate by subset: 13.0 per 1,000 pairs in helpful-rejection-sampled vs 4.7 in harmless-base (χ² p = 6e-65, Cramér's V = 0.04), so the failures are not MCAR (finding 2).</em>
+  <em><b>Figure 1.</b> Quarantine rate by subset (finding 2).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig2_groups_and_similarity.png" alt="Prompt groups and reply similarity" width="800"><br>
-  <em><b>Figure 2.</b> 93% of pairs share their opening prompt with another pair, and 0.2% of train pairs have near-identical replies (similarity ≥ 0.9) (finding 3).</em>
+  <em><b>Figure 2.</b> Prompt-group sizes and reply similarity (finding 3).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig3_length_distributions.png" alt="Reply length distributions" width="800"><br>
-  <em><b>Figure 3.</b> Reply length is right-skewed (skew 2.0, falling to −0.4 after <code>log1p</code>). Replies above the train 99th percentile (210 words) are flagged, not deleted (finding 4).</em>
+  <em><b>Figure 3.</b> Reply-length distributions, raw and after <code>log1p</code> (finding 4).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig4_length_bias.png" alt="Length bias by subset" width="800"><br>
-  <em><b>Figure 4.</b> The longer reply is preferred in 58% of helpful-base pairs but only 42% of harmless-base pairs, so the pooled 52% hides two opposite effects (finding 6).</em>
+  <em><b>Figure 4.</b> Share of pairs where the longer reply is preferred, by subset (finding 6).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig5_length_baselines_dev.png" alt="Length baselines on dev" width="800"><br>
-  <em><b>Figure 5.</b> On dev, a length-only model scores 51.4% pooled but 58.2% with one model per subset (the constant baseline scores 48.3%) (finding 7).</em>
+  <em><b>Figure 5.</b> Length baselines on dev, pooled and per subset (finding 7; per-subset bars in M2.7).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig6_refusals.png" alt="Refusal preference by subset" width="800"><br>
-  <em><b>Figure 6.</b> When only one reply is a refusal, it is preferred in 75% of harmless-base pairs but only 27% of helpful-base pairs (finding 9).</em>
+  <em><b>Figure 6.</b> How often the refusal is preferred when only one reply is a refusal, by subset (finding 9).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig7_feature_correlations.png" alt="Feature correlations" width="800"><br>
-  <em><b>Figure 7.</b> Spearman correlations between inputs: reply A vs reply B length ρ = 0.50, number of turns vs context words ρ = 0.82 (finding 10).</em>
+  <em><b>Figure 7.</b> Spearman correlations between inputs (finding 10).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig8_inference.png" alt="Group-bootstrap inference" width="800"><br>
-  <em><b>Figure 8.</b> With a group bootstrap, the length-preference gap between helpful-base and harmless-base is 16.1 points (95% CI 14.3–17.8), and the effect replicates on dev in all 4 subsets (finding 11).</em>
+  <em><b>Figure 8.</b> Group-bootstrap intervals and replication on dev (finding 11).</em>
 </p>
 
 <p align="center">
   <img src="docs/eda/fig9_cross_validation.png" alt="Random-row vs group cross-validation" width="800"><br>
-  <em><b>Figure 9.</b> Random-row and prompt-group 5-fold CV agree within 0.2 points for both models, but the group folds vary more from fold to fold (finding 12).</em>
+  <em><b>Figure 9.</b> Random-row vs prompt-group 5-fold cross-validation (finding 12).</em>
 </p>
 
 
@@ -339,6 +353,21 @@ All 9 figures are produced by `make eda` and saved in [`docs/eda/`](docs/eda/). 
 | Results are only trustworthy if checked by an independent method | The first Beam version read only 44,044 of the 169,352 rows, and comparing it with pandas exposed the bug | 7 reconciliation checks recount everything from the raw files; Beam and pandas counts must match | `test_reconciliation_catches_a_flipped_label`, `test_beam_pipeline_agrees_with_pandas_step3` |
 
 
+### Data governance and ethics
+
+This section summarises the governance rules that apply to v1.1, so they can be checked here without the M1 report. Full detail is in [`docs/DATASHEET.md`](docs/DATASHEET.md), and the original audit plan is in sections 11–12 of the [M1 README](https://github.com/bounchun/rlhf-reward-model-pipeline-m1).
+
+| Topic | What the project does | Evidence |
+|---|---|---|
+| Licence and provenance | `Anthropic/hh-rlhf` is MIT-licensed. The download is pinned to commit `09be8c5`, all 8 raw files are checked by SHA-256, and `raw/` is write-once. Every version has a manifest recording file hashes, row counts and the code commit | `manifests/raw-09be8c5….json`, `manifests/v1.1.json`, `reconciliation.json` |
+| Harmful content | harmless-base contains offensive and dangerous red-team text. No dataset text is ever committed to Git: the EDA outputs are aggregates only, the 200-pair review sheet stays local, and the Colab verify cell shows non-text columns only. Both buckets block public access | `.gitignore`, `docs/eda/`, bucket settings screenshot (M2.2) |
+| Personal data | 304 e-mail addresses and 724 phone-like numbers are masked as `[EMAIL]` / `[PHONE]` in step 3, and step 4 fails the run if any remain. Names and street addresses are **not** detected (see M2.6) | `quality_report.json` (`no_residual_pii_after_masking`) |
+| Access (least privilege) | `pipeline-sa` writes; `train-sa` reads `processed/` only and cannot reach `raw/`, `quarantine/` or the holdout bucket | `docs/iam_check_v1.1.txt` |
+| Data poisoning | Step 4 flags 8-word phrases that appear in at least 20 pairs and are on the same side (chosen or rejected) at least 90% of the time, which is what a planted trigger would look like (Rando & Tramèr, 2024). Flagged pairs go to manual review rather than being dropped. v1.1: no pairs flagged | `audit/v1.1/poison_screen.csv` |
+| Annotators and consent | Crowdworkers (mostly US-based, MTurk and Upwork) were paid (Bai et al., 2022); the release does not document ethical review or consent. This project collects no new human data; the only new labels are my own 200-pair blind review | `docs/DATASHEET.md` §3 |
+| Representativeness and bias | English only, mostly US crowdworkers, 2021 models. The length and refusal effects differ by subset, so results are always reported per subset and never as a claim about how "people in general" prefer replies | Findings 6 and 9; `docs/DATASHEET.md` §5 |
+| Retention and distribution | Processed files are not redistributed and stay in the private buckets; anyone can rebuild them from the public release with `make all`. Old object versions are deleted by the lifecycle rules (4 newer versions or 90 days) | `scripts/gcs_lifecycle.json` |
+
 ### Leakage audit (Kapoor & Narayanan, 2023)
 
 | Leakage type | How this project handles it |
@@ -356,7 +385,7 @@ The dataset itself is documented in **[`docs/DATASHEET.md`](docs/DATASHEET.md)**
 
 ### M2.4 Changes since v1.0, and why
 
-The data split is unchanged (same salts), and so are the two buckets and their access rules; how the pipeline uses the storage was refined (see [M2.2](#m22-storage-implementation-and-evidence)). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
+The data split is unchanged (same salts), and so are the two buckets; `train-sa`'s access was narrowed to `processed/`, and how the pipeline uses the storage was refined (see [M2.2](#m22-storage-implementation-and-evidence)). v1.1 is a MINOR version (M1 versioning rule: cleaning rules changed, split unchanged), and the run confirms it: train / dev / test / F1 / F2 have exactly the same sizes, groups and label shares as v1.0.
 
 | What changed | Reason |
 |---|---|
@@ -391,7 +420,7 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 | Limitation | Impact | How to address it |
 |---|---|---| 
-| The Colab run used my personal Google account instead of `pipeline-sa` | The service-account roles exist but were never used, so the rule "the training account cannot read the holdout bucket" is configured but unverified | In M3, run the pipeline and a training read as the service accounts (via impersonation) and record the expected `403` on the holdout bucket |
+| The Colab run used my personal Google account instead of `pipeline-sa` | The `train-sa` restrictions are verified (`docs/iam_check_v1.1.txt`), but the pipeline itself has not yet run as `pipeline-sa` | In M3, run the pipeline with `--impersonate-service-account` set to `pipeline-sa`, and run training as `train-sa` |
 | Each pair has a single, noisy label (about 63% researcher agreement) | Caps the accuracy any model can reach; some apparent model errors will really be label errors | Use the 200-pair review sheet to estimate how noisy the labels are |
 | hh-rlhf has no timestamps | F1 and F2 are held-out prompt groups rather than data collected later, so they cannot measure drift over time | Use a preference dataset that records when each pair was collected |
 | The test set reflects how this data was collected (crowdworker prompts) | Results describe crowdworker conversations on these four subsets, not real users | Evaluate on a preference set collected in a different way |
@@ -404,20 +433,34 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 
 - **Implementing storage early paid off:** because the buckets worked after M1, M2 could focus on how the pipeline uses them (checking before upload, keeping rejected rows, reading files back to verify them). Most of the trust in the data now comes from these checks rather than from the bucket itself.
 - **EDA changed the pipeline, not just the report:** three issues found in the data (the label that always pointed to `chosen`, the curly apostrophe that broke the refusal rule, and the length effect that varied by subset) each led to a code change and a new test.
-- **Independent checks caught a real bug:** comparing the pandas output with Beam revealed a multi-member gzip reading bug that made Beam read only 44,044 of the 169,352 rows, something the pandas pipeline alone would never have shown. Next time I would build the reconciliation first, not last.
+- **Independent checks caught a real bug:** the Beam cross-check exposed the gzip reading bug described under *Apache Beam* above, which the pandas pipeline alone would never have shown. Next time I would build the reconciliation first, not last.
 - **Keeping claims precise:** reviewing the draft showed some wording that went further than the evidence ("no leakage", "Dataflow-ready"). These now read "no measurable inflation for these models" and "planned, not implemented".
-- **M3 goals:** train the model on `model_inputs/`, beat the per-subset length baseline on every subset, report group-bootstrap confidence intervals, and verify that the service accounts are properly separated.
+- **M3 goals:** train the model on `model_inputs/`, beat the best length baseline on every subset (bars in M2.7), report group-bootstrap confidence intervals, and run the pipeline itself as `pipeline-sa`.
 
 ### M2.7 Plan for Milestone 3
 
 **First model.** A small pretrained transformer encoder (512 tokens) used as a reward model: it gives each reply its own score from the context plus that reply (`text_a`, `text_b` from step 11), and is trained with a pairwise loss so that the preferred reply scores higher. Scoring each reply on its own, rather than classifying A vs B, means the same model can later rank any number of replies. It must beat these baselines from M2 (dev accuracy):
 
-| Baseline | Dev accuracy |
+| Baseline (all 4 subsets pooled) | Dev accuracy |
 |---|---|
 | Constant (train majority class) | 48.3% |
-| Length only, pooled | 51.4% |
+| Always pick the longer reply | 50.9% |
+| Length only, one model for all subsets | 51.4% |
 | Bag of words (reply A − reply B) | 54.8% |
-| Length × subset, one model per subset | 58.2% (the one to beat) |
+| Length × subset, one model per subset | 58.2% |
+
+The constant baseline is below 50% because it predicts train's majority class: `label` = 1 in 49.8% of train pairs, so it always predicts 0, while dev has `label` = 1 in 51.7% of pairs. The A/B swap is by hash, so the two shares differ by chance, not by design.
+
+The pooled numbers hide large differences between subsets, so the M3 target is set **per subset**: on each subset, the model must beat the *best* length baseline for that subset (dev accuracy, `eda_summary.json` → `E8_baselines.by_subset_dev`):
+
+| Subset (dev pairs) | Always pick longer | Length, one model for all | Length, one model per subset | Bar for M3 |
+|---|---|---|---|---|
+| helpful-base (723) | **61.0%** | 60.2% | 60.6% | 61.0% |
+| helpful-rejection-sampled (966) | **55.6%** | 55.6% | 55.0% | 55.6% |
+| helpful-online (356) | 44.1% | 48.3% | **57.0%** | 57.0% |
+| harmless-base (831) | 39.7% | 40.2% | **60.3%** | 60.3% |
+
+So 58.2% is not a single bar. On helpful-base and helpful-rejection-sampled, the per-subset model adds nothing over "pick the longer reply", and is even slightly worse. Its pooled gain comes almost entirely from harmless-base and helpful-online, where it learns that the *shorter* reply tends to win. With only 356–966 dev pairs per subset, each bar has a 95% interval of about ±3–5 points, so a model counts as beating the bar only if its own interval lies above it.
 
 **How it will be evaluated**
 
@@ -433,8 +476,8 @@ The data split is unchanged (same salts), and so are the two buckets and their a
 |---|---|
 | Experiment tracking | Every run logs the data version (`data-v1.1`), the Git commit, the full config, the random seed and the metrics per subset and slice, with MLflow |
 | Versioned models | A new `models/<model-version>/` folder in the main bucket holds the weights, a manifest (SHA-256, data version, commit, metrics) and a short model card, versioned like the data |
-| Access | Training runs as `train-sa`, which can read `processed/` but not the holdout bucket; the final test is a separate step. This also tests the service-account separation that M2 configured but did not verify (M2.6) |
-| Retraining trigger | Retrain when a new data version is released (MINOR or MAJOR bump), when the monitoring alerts in step 3 fire, or when accuracy on new held-out prompts (F2) falls below the per-subset length baseline |
+| Access | Training runs as `train-sa`, which can read `processed/` and nothing else (checked by `scripts/check_iam.sh`). The final test is a separate step, run as `pipeline-sa` |
+| Retraining trigger | Retrain when a new data version is released (MINOR or MAJOR bump), when the monitoring alerts in step 3 fire, or when accuracy on new held-out prompts (F2) falls below that subset's bar in the table above |
 | Reproducibility | Pinned libraries and seeds, tests for the training code in CI, and a Colab notebook that runs training end to end |
 
 
@@ -473,30 +516,18 @@ DHAI_BUCKET= make all                          # or: full run with local folders
 
 ---
 
-## 🛠️ Repository layout and pipeline steps
+## 🛠️ Repository layout
 
-One Python script per step; each script says at the top what it reads, writes and checks, and each run records its row counts, settings and checksums in `manifests/<version>.json`. `make all` runs steps 1–11, then the sample queries, the reconciliation and the EDA in order.
+What each step does is described once, in the tree in [M2.1](#m21-pipeline-architecture). Each script also says at the top what it reads, writes and checks, and each run records its counts, settings and checksums in `manifests/<version>.json`.
 
-| Step | Script (`src/`) | Input → output |
-|---|---|---|
-| 1. Acquire | `step1_scrape_raw.py` | Downloaded from Hugging Face at a pinned commit; a failed download is retried, with a longer wait before each attempt (backoff) → saved to `data/downloads/`, logged in `manifests/raw-<rev>.json` |
-| 2. Store raw | `step2_store_raw.py` | Uploads the raw files to `gs://bc-rlhf-reward-2026/raw/`; each file is written once and never overwritten, then read back and checked against its checksum |
-| 3. Validate + clean | `step3_clean.py`, `contract.py` | Reads the raw files and writes valid rows to `cleaned.parquet`; rows that fail a check go to a quarantine file with the reason they failed. Every input row is accounted for (kept + quarantined = total), personal details are masked, and an alert is raised if the schema changes or the reject rate gets too high |
-| 4. Quality checks | `step4_quality_checks.py` | Runs hard checks that stop the pipeline if they fail, screens the data for signs of poisoning (deliberately misleading or manipulated pairs), and searches for any personal details the masking missed; results saved to `audit/<version>/` |
-| 5. Features | `step5_features.py` | Builds the group key for each pair (a hash of the normalised first Human message, so related pairs stay in the same split); places the chosen reply in position A or B by a seeded swap and records which in `label`, so the answer is not always the same position; and adds response lengths and refusal flags |
-| 6. Filter | `step6_filter.py` | Sets aside 20% of the prompt groups as a future reserve (F1, F2), then takes a 30,002-pair working set made of whole prompt groups, keeping the original mix of subsets |
-| 7. Split | `step7_split.py` | Splits the working set 80/10/10 into train/dev/test using a hash of each prompt group, so related pairs always land in the same split; the outlier threshold is learned from the training set only, so dev and test stay unseen |
-| 8. Shard | `step8_shard.py` | Optional, off by default: splits the output into smaller files (shards) so larger datasets can be processed in parallel; not needed at the current 79 MB |
-| 9. Store processed | `step9_store_processed.py`, `contract.py` | Checks the processed data against a 17-rule data contract and logs each result in `validation_log.csv`; only after it passes are the Parquet files uploaded to `processed/` and the held-out data to the separate holdout bucket |
-| 10. Review sheet | `step10_review_sample.py`, `score_review.py` | Draws 200 pairs for a blind review, where the reviewer picks the better reply without seeing the original label; `score_review.py` then measures how often the reviewer agrees with the dataset label, to estimate label noise |
-| 11. Model inputs | `step11_model_inputs.py` | Writes the final, ready-to-train files to `model_inputs/` for every split; the feature scaler is learned from the training set only and then applied unchanged to dev, test and the reserve |
-| Check | `reconcile.py` | Recounts everything independently, starting again from the raw files, and compares the result with the pipeline's output in 7 checks; any mismatch shows a bug in one of the two |
-| Check (optional) | `beam_validate.py` | Runs step 3's data contract a second time on Apache Beam and compares the results with the pandas pipeline; run it with `make beam` |
-| EDA | `eda.py` | Explores the cleaned data and saves the results to `docs/eda/`: 9 figures, summary statistics in `eda_summary.json`, and the list of findings in `findings.csv` |
-| Queries | `sample_queries.py` | Runs example pandas queries on the train and dev data read back from storage, showing that the stored files can be loaded and queried as expected |
-
-
-
+| Scripts (`src/`) | Role |
+|---|---|
+| `step1_scrape_raw.py` … `step11_model_inputs.py` | The 11 pipeline steps, run in order by `make all` |
+| `contract.py` | The raw data contract (step 3) and the 17-rule processed contract (step 9) |
+| `reconcile.py`, `beam_validate.py` | Independent checks: plain-Python recount (7 checks), and step 3 re-run on Apache Beam (`make beam`) |
+| `eda.py`, `sample_queries.py` | EDA outputs in `docs/eda/`, and example queries on the stored train and dev data |
+| `score_review.py` | Scores the 200-pair blind review against the dataset labels (`make review-score`) |
+| `common.py`, `text_utils.py` | Storage layer, hashing, manifests; text normalisation, PII masking, refusal phrases |
 
 | Path | Purpose |
 |---|---|
@@ -511,7 +542,8 @@ One Python script per step; each script says at the top what it reads, writes an
 | `docs/DATASHEET.md` | Datasheet for the processed v1.1 dataset: what it contains, how it was built and its known limitations (Gebru et al., 2021) |
 | `docs/architecture_m2.html` | Source file for the architecture diagram (`docs/img/architecture_m2.png`) |
 | `docs/img/m2_bucket*_v1.1.png` | Bucket screenshots after v1.1 Colab run |
-| `scripts/setup_gcs.sh` | Run once to create GCS buckets and set IAM permissions (carried over from M1) |
+| `scripts/setup_gcs.sh` | Run once to create GCS buckets, service accounts and IAM permissions (`train-sa` restricted to `processed/` in v1.1) |
+| `scripts/check_iam.sh` | Acts as `train-sa` and checks what it can and cannot read; output in `docs/iam_check_v1.1.txt` |
 | `.github/workflows/ci.yml` | GitHub Actions workflow: runs the tests and an offline demo on every push |
 
                             
@@ -532,6 +564,7 @@ Interim files (`data/interim/`) stay local and are never committed: until the sp
 - scikit-learn: [Common pitfalls and recommended practices](https://scikit-learn.org/stable/common_pitfalls.html).
 - [Apache Beam programming guide](https://beam.apache.org/documentation/programming-guide/).
 - Wahid, A. (2026). *Data Handling and Infrastructure for AI*, Lectures 4–6 and Labs 4–6, SETU.
+- Singhal, P., Goyal, T., Xu, J. and Durrett, G. (2023). [*A Long Way to Go: Investigating Length Correlations in RLHF*](https://arxiv.org/abs/2310.03716). COLM 2024.
 - Rando, J. and Tramèr, F. (2024). [*Universal Jailbreak Backdoors from Poisoned Human Feedback*](https://arxiv.org/abs/2311.14455). ICLR.
 
 ---
