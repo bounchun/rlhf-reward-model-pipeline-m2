@@ -42,8 +42,11 @@ gcloud storage buckets add-iam-policy-binding "gs://$HOLDOUT" --member="serviceA
 # test, F1 and F2 rows too) and quarantine/, which would defeat the holdout bucket.
 # A managed folder carries its own IAM policy that covers every object under its prefix.
 # Managed folders need uniform bucket-level access, which create() switches on.
-gcloud storage managed-folders create "gs://$BUCKET/processed/" 2>/dev/null \
-  || echo "Managed folder gs://$BUCKET/processed/ already exists, keeping it"
+if gcloud storage managed-folders describe "gs://$BUCKET/processed/" >/dev/null 2>&1; then
+  echo "Managed folder gs://$BUCKET/processed/ already exists, keeping it"
+else
+  gcloud storage managed-folders create "gs://$BUCKET/processed/"   # errors are shown, and stop the script
+fi
 gcloud storage managed-folders add-iam-policy-binding "gs://$BUCKET/processed/" \
   --member="serviceAccount:$TRAIN" --role=roles/storage.objectViewer
 # train-sa deliberately gets NO role on the main bucket itself and NO role on the holdout bucket.

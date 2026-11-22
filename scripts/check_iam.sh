@@ -2,8 +2,9 @@
 # Proves the access rules by acting AS train-sa (service-account impersonation).
 #   usage:  PROJECT=rlhf-reward-pipeline-bc BUCKET=bc-rlhf-reward-2026 bash scripts/check_iam.sh
 # One-off prerequisite: your own account needs roles/iam.serviceAccountTokenCreator on
-# train-sa (the README, M2.2, gives the command). Only object metadata is read, never
-# dataset text, so the output is safe to commit as docs/iam_check_<version>.txt.
+# train-sa (the README, M2.2, gives the command); it can take a few minutes to take effect.
+# Only object metadata is read, never dataset text, so the output is safe to commit as
+# docs/iam_check_<version>.txt.
 set -uo pipefail
 : "${PROJECT:?set PROJECT}" "${BUCKET:?set BUCKET}"
 HOLDOUT="${HOLDOUT:-${BUCKET}-holdout}"
@@ -13,15 +14,23 @@ TRAIN="train-sa@${PROJECT}.iam.gserviceaccount.com"
 OUT="${OUT:-docs/iam_check_${VERSION}.txt}"
 FAIL=0
 
+# Preflight: if we cannot act as train-sa, every call fails and would look like "DENY".
+if ! err=$(gcloud auth print-access-token --impersonate-service-account="$TRAIN" 2>&1 >/dev/null); then
+  echo "Cannot act as $TRAIN, so nothing was checked:"
+  echo "$err" | grep -m1 -iE 'error|denied' || echo "$err" | head -n1
+  echo "Grant yourself roles/iam.serviceAccountTokenCreator on $TRAIN, wait a few minutes, and rerun."
+  exit 2
+fi
+
 check () {  # expected (ALLOW|DENY), label, gcloud storage args...
   local want="$1" label="$2"; shift 2
   local err got
   if err=$(gcloud storage "$@" --impersonate-service-account="$TRAIN" 2>&1 >/dev/null); then
     got=ALLOW
-  elif grep -qiE '403|AccessDenied|does not have|Permission' <<<"$err"; then
-    got=DENY
+  elif grep -qiE 'HTTPError 403|does not have storage\.' <<<"$err"; then
+    got=DENY                              # a real Cloud Storage permission refusal
   else
-    got="ERROR ($(head -n1 <<<"$err"))"   # e.g. 404: wrong path, not a permission result
+    got="ERROR ($(grep -m1 -iE 'error' <<<"$err" || head -n1 <<<"$err"))"   # e.g. 404: wrong path
   fi
   if [[ "$got" == "$want" ]]; then res=PASS; else res=FAIL; FAIL=1; fi
   printf '%-4s  expected %-5s got %-5s  %s\n' "$res" "$want" "$got" "$label" | tee -a "$OUT"
