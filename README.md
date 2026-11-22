@@ -17,7 +17,7 @@ This project prepares the data for an RLHF reward model : given a conversation a
 | Storage | Google Cloud Storage rather than a database, because the data is written once in batches and training reads whole files, with no queries in between. Two buckets: a main bucket and a holdout bucket for test, F1 and F2. Settings, access rules and evidence are in [M2.2](#m22-storage-implementation-and-evidence) |
 | Formats | Raw files stay as the original JSONL.gz. Processed data is Parquet, manifests are JSON, and audit files are CSV or JSON |
 | Versioning | Each version gets its own `vMAJOR.MINOR` folder, a manifest and a Git tag (`data-v1.0`, now `data-v1.1`). The MINOR number goes up when the cleaning rules change |
-| Governance, bias and poisoning | Summarised for v1.1 in [Data governance and ethics](#data-governance-and-ethics), with the datasheet and the leakage audit |
+| Governance, bias, poisoning | Summarised for v1.1 in [Data governance and ethics](#data-governance-and-ethics), with the datasheet and the leakage audit |
 
 
 
