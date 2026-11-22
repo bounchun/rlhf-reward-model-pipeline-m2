@@ -31,11 +31,10 @@ This project prepares the data for an RLHF reward model : given a conversation a
 | Validation that fails loudly | Raw data contract with quarantine (step 3); 17-rule processed contract checked before upload (step 9) | [Six qualities](#six-qualities-of-a-trustworthy-pipeline) |
 | Cleaning and transformation | Normalisation and PII masking (step 3), A/B swap (step 5), train-fitted outlier flag (step 7) and scaler (step 11) | [M2.1](#m21-pipeline-architecture) |
 | Second method / reconciliation | `reconcile.py` recounts from the raw files without pipeline code; all 7 checks match | [M2.5](#m25-v11-run-on-the-real-data) |
-| Reproducibility | Pinned data and libraries, hash-based splits, byte-identical reruns, 43 tests and a demo in CI on every push | [Six qualities](#six-qualities-of-a-trustworthy-pipeline) |
+| Reproducibility | Pinned data and libraries, hash-based splits, byte-identical reruns, 44 tests and a demo in CI on every push | [Six qualities](#six-qualities-of-a-trustworthy-pipeline) |
 | Governance and ethics | Licence, harmful content, PII, access, poisoning, consent, bias, retention | [Data governance and ethics](#data-governance-and-ethics) |
-| Changes since v1.0 | | [M2.4](#m24-changes-since-v10-and-why) |
-| Changes after peer review | | [M2.8](#m28-changes-after-peer-review) |
-| Limitations and reflection | | [M2.6](#m26-limitations-and-reflection) |
+| Changes since v1.0 | Narrower `train-sa` access, quarantine, data contracts, PII masking, rebuilt refusal phrases, model-ready inputs; the split is unchanged | [M2.4](#m24-changes-since-v10-and-why) |
+| Limitations and reflection | What the data and the pipeline cannot show yet, and what I learned building it | [M2.6](#m26-limitations-and-reflection) |
 
 ### M2.1 Pipeline architecture
 
@@ -163,7 +162,7 @@ Why object storage was chosen is summarised in [M2.0](#m20-project-summary-and-m
 **How the data is organised.** Each dataset version has its own folders (`processed/v1.1/`, `quarantine/v1.1/`, `audit/v1.1/` and `v1.1/` in the holdout bucket). That way v1.0 and v1.1 can sit side by side, and a new version never overwrites an old one. Raw files are stored under the Hugging Face commit they came from (`raw/hh-rlhf/<commit>/<subset>/<split>.jsonl.gz`), so files from another version of the dataset can't get mixed in. The interim files (`data/interim/`) are never uploaded, because until the split is made they still contain the test rows.
 
 
-**How it is accessed.** Every read and write goes through one small storage layer in `src/common.py` (`write_bytes`, `read_bytes`, `read_parquet` and `exists`), which uses `gcsfs` with Application Default Credentials (Google login in Colab). The bucket name is taken from the `DHAI_BUCKET` Colab Secret or environment variable, so it doesn't appear in the code or in `config.json`, and there is no service account key file anywhere. If `DHAI_BUCKET` is left empty, the same code writes to `data/lake/` and `data/holdout/` on disk instead. That is how CI (Continuous Integration) runs the 43 tests and the offline demo without a Google Cloud account. 
+**How it is accessed.** Every read and write goes through one small storage layer in `src/common.py` (`write_bytes`, `read_bytes`, `read_parquet` and `exists`), which uses `gcsfs` with Application Default Credentials (Google login in Colab). The bucket name is taken from the `DHAI_BUCKET` Colab Secret or environment variable, so it doesn't appear in the code or in `config.json`, and there is no service account key file anywhere. If `DHAI_BUCKET` is left empty, the same code writes to `data/lake/` and `data/holdout/` on disk instead. That is how CI (Continuous Integration) runs the 44 tests and the offline demo without a Google Cloud account. 
 
 
 **How it fits into the pipeline.** Storage isn't just where the data ends up. Several later steps read their input back from the buckets, so they work on exactly what was stored rather than on a local copy that might differ.  
@@ -225,7 +224,7 @@ All numbers come from `make eda` on the real data (`docs/eda/eda_summary.json`).
 | 5 | 9.7% of train contexts exceed 256 words | Step 11 cuts long contexts from the left, keeping the most recent turns, and marks each cut row with `context_truncated` | `test_left_truncation_keeps_the_newest_turns`, `test_scaler_is_fitted_on_train_only` |
 | 6 | The preferred reply is the longer one in 58% of helpful-base pairs but in only 42% of harmless-base pairs; pooled together (52%), the two effects cancel out (Cramér's V = 0.14) | Length is a shortcut that depends on the subset: M3 reports accuracy per subset and per length-gap slice (fig. 4) | `test_eda_writes_figures_and_findings_without_reading_the_holdout` |
 | 7 | A length-only model gets 51.4% on dev when pooled, but 58.2% when a separate length model is fitted for each subset | M3 must beat the best length baseline *on each subset*; the per-subset bars are in [M2.7](#m27-plan-for-milestone-3) (fig. 5) | — |
-| 8 | 47% of replies use the curly apostrophe ’, so the v1.0 refusal regex (straight `'` only) flagged only 0.09% of pairs | Refusal phrases rebuilt from the data to match both apostrophes: 2.2% now flagged | — |
+| 8 | 47% of replies use the curly apostrophe ’, so the v1.0 refusal regex (straight `'` only) flagged only 0.09% of pairs | Refusal phrases rebuilt from the data to match both apostrophes: 2.2% now flagged | `test_refusals_are_flagged_with_either_apostrophe` |
 | 9 | When only one of the two replies is a refusal, the refusal is preferred in 75% of harmless-base pairs but in only 27% of helpful-base pairs | A second shortcut that depends on the subset, so M3 reports a refusal slice for each subset (fig. 6) | — |
 | 10 | Some inputs are strongly correlated: the lengths of reply A and reply B have ρ = 0.50 pooled and 0.27–0.54 within subsets (partly because the subsets differ in typical reply length), and the number of turns and the context length in words have ρ = 0.82 | Linear baselines use the log length ratio instead of the two lengths; since part of the A–B correlation comes from the subsets, this is another reason to evaluate per subset (fig. 7) | — |
 | 11 | Rows are clustered in prompt groups, so confidence intervals were recomputed with a group bootstrap that resamples whole prompt groups rather than single rows. The design effect is small (1.07–1.15). The gap in length preference between helpful-base and harmless-base is 16.1 points (95% CI 14.3–17.8), the length effect holds on held-out dev in all 4 subsets, and all 4 tests remain significant after Benjamini–Hochberg correction | M3 reports group-bootstrap intervals. Per-subset test accuracy is only precise to about ±3–5 points, so differences smaller than that will not be claimed (fig. 8) | `test_group_bootstrap_widens_intervals_for_clustered_rows`, `test_benjamini_hochberg` |
@@ -300,7 +299,7 @@ All 9 figures are produced by `make eda` and saved in [`docs/eda/`](docs/eda/). 
 | Repeatable | The data commit and library versions are pinned and the splits are hash-based. A full rerun reproduces the Parquet files and EDA figures byte for byte | `test_rerun_is_byte_identical` |
 | Idempotent | Each output file is overwritten in full on every run (like `WRITE_TRUNCATE`), never appended to; `raw/` is write-once and rejects any file whose bytes differ from the original | `test_store_refuses_to_overwrite_raw_with_different_bytes` |
 | Observable | Every step saves its counters in the manifest; rejected rows are quarantined with their reasons; each file's quarantine rate and field fingerprint are tracked, with alerts for unusual rates or schema drift (fields renamed, added, removed or changing type) | `test_schema_and_quarantine_rate_recorded_per_file`, `test_alerts_for_schema_drift_and_reject_spike` |
-| Testable | 43 unit tests on synthetic data with deliberately planted defects; GitHub Actions runs them and an offline demo on every push | `tests/test_pipeline.py`, `.github/workflows/ci.yml` |
+| Testable | 44 unit tests on synthetic data with deliberately planted defects; GitHub Actions runs them and an offline demo on every push | `tests/test_pipeline.py`, `.github/workflows/ci.yml` |
 | Fails loudly | The run stops on a checksum mismatch, a row-accounting gap (`rows read ≠ kept + quarantined`), a HARD contract violation, a reconciliation disagreement or, optionally, an alert | `test_tampered_raw_file_is_rejected`, `test_processed_contract_catches_a_corrupted_copy`, `test_reconciliation_catches_a_flipped_label` |
 | Cost-aware | One Python process instead of Dataflow workers (see M2.1); Colab and CI are free; lifecycle rules keep storage costs small | — |
 
@@ -389,6 +388,7 @@ The data split is unchanged (same salts), and so are the two buckets; `train-sa`
 
 - **Implementing storage early paid off:** because the buckets worked after M1, M2 could focus on how the pipeline uses them (checking before upload, keeping rejected rows, reading files back to verify them). Most of the trust in the data now comes from these checks rather than from the bucket itself.
 - **EDA changed the pipeline, not just the report:** three issues found in the data (the label that always pointed to `chosen`, the curly apostrophe that broke the refusal rule, and the length effect that varied by subset) each led to a code change and a new test.
+- **Configured is not the same as verified:** testing the access rules by acting as `train-sa` showed that its bucket-wide read role also opened `raw/`, which holds the test rows. Restricting it to `processed/` and keeping `check_iam.sh` as a repeatable check closed the gap; the holdout bucket alone was not enough.
 - **Independent checks caught a real bug:** the Beam cross-check exposed the gzip reading bug described under *Apache Beam* above, which the pandas pipeline alone would never have shown. Next time I would build the reconciliation first, not last.
 - **Keeping claims precise:** reviewing the draft showed some wording that went further than the evidence ("no leakage", "Dataflow-ready"). These now read "no measurable inflation for these models" and "planned, not implemented".
 
@@ -435,18 +435,6 @@ So 58.2% is not a single bar. On helpful-base and helpful-rejection-sampled, the
 | Retraining trigger | Retrain when a new data version is released (MINOR or MAJOR bump), when the monitoring alerts in step 3 fire, or when accuracy on new held-out prompts (F2) falls below that subset's bar in the table above |
 | Reproducibility | Pinned libraries and seeds, tests for the training code in CI, and a Colab notebook that runs training end to end |
 
-### M2.8 Changes after peer review
-
-Two classmates reviewed this milestone. Every point they raised was checked against the repository, and these are the changes made in response (22 November 2026):
-
-| Feedback | What changed | Where |
-|---|---|---|
-| "Double-check the GCS access permissions" | The check found a real gap: `train-sa` could read the whole main bucket, including `raw/`, which holds the test, F1 and F2 rows. It is now limited to the `processed/` managed folder, and a check run as `train-sa` passes all 8 cases | [M2.2](#m22-storage-implementation-and-evidence), `scripts/setup_gcs.sh`, `scripts/check_iam.sh`, [`docs/iam_check_v1.1.txt`](docs/iam_check_v1.1.txt) |
-| "Clarify the different baseline accuracies for each subset" | Added the per-subset baselines and a separate bar for M3 on each subset, and explained why the constant baseline is below 50% | [M2.7](#m27-plan-for-milestone-3) |
-| Governance "addressed in M1 but cannot verify" | Added a v1.1 governance summary, with the evidence for each point, so it can be checked without the M1 report | [Data governance and ethics](#data-governance-and-ethics) |
-| "EDA could benefit from more domain- and problem-specific interpretation" | Added an interpretation of the findings based on how hh-rlhf was collected, and on why length is the main reward-hacking risk | [What the findings mean for a reward model](#what-the-findings-mean-for-a-reward-model) |
-| "Documentation detailed but contains duplication, very verbose" | Each topic is now described once: the changes since M1 only in M2.4, the bucket settings only in M2.2, the findings and their tests in one table, and the Beam bug once; the step table became a script index and the figure captions one line each | Whole README |
-
 ## ▶️ How to run it
 
 **Option 1: quick check, no account needed (about 1 minute).** Open a new notebook at [colab.research.google.com](https://colab.research.google.com), paste this into one cell and run it:
@@ -459,7 +447,7 @@ Two classmates reviewed this milestone. Every point they raised was checked agai
 !DHAI_BUCKET= make demo && echo "demo OK"
 ```
 
-It should end with `OK` (43 tests passed; the Apache Beam test runs when `requirements-beam.txt` is installed, as in CI) and `demo OK` (the whole pipeline, steps 1–11, the reconciliation and the EDA, run on fake data with planted problems). Nothing touches Google Cloud. The same two commands run on every push in GitHub Actions.
+It should end with `OK` (44 tests passed; the Apache Beam test runs when `requirements-beam.txt` is installed, as in CI) and `demo OK` (the whole pipeline, steps 1–11, the reconciliation and the EDA, run on fake data with planted problems). Nothing touches Google Cloud. The same two commands run on every push in GitHub Actions.
 
 **Option 2: the full pipeline on the real data.** [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bounchun/rlhf-reward-model-pipeline-m2/blob/main/notebooks/run_pipeline_colab.ipynb)
 1. Click the badge, then File → Save a copy in Drive.
@@ -501,7 +489,7 @@ What each step does is described once, in the tree in [M2.1](#m21-pipeline-archi
 | `requirements.txt` | Pinned package versions for Python 3.13 (optional Apache Beam dependencies in `requirements-beam.txt`) |
 | `Makefile` | `make all` \| `scrape` \| `store` \| `preprocess` \| `queries` \| `reconcile` \| `eda` \| `beam` \| `test` \| `demo` |
 | `src/` | The step scripts above, plus `common.py` (storage, hashing, manifests) and `text_utils.py` (text processing) |
-| `tests/` | 43 `unittest` tests on synthetic data with deliberately planted errors (generated by `tests/fake_data.py`) |
+| `tests/` | 44 `unittest` tests on synthetic data with deliberately planted errors (generated by `tests/fake_data.py`) |
 | `notebooks/run_pipeline_colab.ipynb` | Runs the full M2 pipeline in Colab: steps 1–11, reconciliation, EDA figures. Uses Google login and a Colab Secret, so no credentials are stored in code |
 | `manifests/` | Dataset manifests recording lineage: file checksums, row counts and code commit that produced each version |
 | `docs/eda/` | EDA outputs: summary statistics and figures only, no text from dataset |

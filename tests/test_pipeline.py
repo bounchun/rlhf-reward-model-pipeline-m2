@@ -314,6 +314,25 @@ class TestStep5Features(unittest.TestCase):
         self.assertTrue(all(p.startswith("good") for p in preferred))
         self.assertTrue(0 < out["label"].sum() < 50)
 
+    def test_refusals_are_flagged_with_either_apostrophe(self):
+        # EDA finding 8: 47% of replies use the curly apostrophe, which the v1.0 regex missed
+        refusals = ["I’m sorry, but I can’t help with that.",      # curly (U+2019)
+                    "I'm sorry, but I can't help with that.",      # straight
+                    "Im sorry, I cannot do that.",                 # no apostrophe
+                    "I’m not able to help with that.",
+                    "I’m afraid I can’t do that."]
+        normal = "Sure! Here’s a recipe you can try tonight."
+        n = len(refusals)
+        df = pd.DataFrame({"subset": ["harmless-base"] * n, "pair_id": [f"r{i}" for i in range(n)],
+                           "context": ["Human: help me"] * n, "chosen_resp": refusals,
+                           "rejected_resp": [normal] * n})
+        cfg = json.loads((REPO_ROOT / "config.json").read_text())
+        out, _ = step5_features.add_features(df, cfg)
+        chosen_flag = np.where(out["label"] == 1, out["refusal_a"], out["refusal_b"])
+        other_flag = np.where(out["label"] == 1, out["refusal_b"], out["refusal_a"])
+        self.assertTrue(chosen_flag.all(), "every refusal must be flagged, whatever the apostrophe")
+        self.assertFalse(other_flag.any(), "a normal reply must not be flagged")
+
     def test_large_generic_groups_are_rekeyed(self):
         self.assertGreater(steps()["step5_features"]["group_rekeying"]["pairs_rekeyed_on_full_context"], 0)
 

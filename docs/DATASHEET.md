@@ -46,7 +46,7 @@ This datasheet follows the questions in Gebru et al. (2021), *Datasheets for Dat
   - Left truncation of contexts to 256 words.
   - Log-length features standardised with the train mean and SD.
 - **Raw data saved?** Yes: write-once, versioned GCS layer, plus the checksummed raw manifest.
-- **Software.** This repository (Python 3.13, pandas, NumPy, scikit-learn; versions pinned in `requirements.txt`). 43 unit tests and CI on every push.
+- **Software.** This repository (Python 3.13, pandas, NumPy, scikit-learn; versions pinned in `requirements.txt`). 44 unit tests and CI on every push.
 
 ## 5. Uses
 
