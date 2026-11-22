@@ -1,0 +1,10 @@
+IAM check as train-sa@rlhf-reward-pipeline-bc.iam.gserviceaccount.com, 2026-11-22T17:25:36Z
+
+PASS  expected ALLOW got ALLOW  read processed/v1.1/train.parquet
+PASS  expected ALLOW got ALLOW  list processed/v1.1/
+PASS  expected DENY  got DENY   read raw/ (contains test, F1, F2 rows)
+PASS  expected DENY  got DENY   list the main bucket root
+PASS  expected DENY  got DENY   read quarantine/v1.1/
+PASS  expected DENY  got DENY   read holdout v1.1/test.parquet
+PASS  expected DENY  got DENY   list the holdout bucket
+PASS  expected DENY  got DENY   write to processed/
